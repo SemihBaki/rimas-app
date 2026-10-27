@@ -5,6 +5,7 @@ import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Layout, Spacing } from '@/constants/theme';
+import { isStandaloneWebApp } from '@/lib/standalone';
 import { useCartCount } from '@/store/shop';
 
 import { BrandMark } from './brand-mark';
@@ -65,13 +66,17 @@ export function ScreenHeader({ title, onBack, right, style, tone = 'dark' }: Scr
 }
 
 /**
- * The brand bar sits inside the safe area, so the breathing room below the
- * status bar is tuned per shape: a small gap when the system already reported a
- * safe area (native iOS, Android), and the airy 10 pt when the viewport itself
- * starts at the top edge (desktop browser, iPhone PWA with an inset viewport).
+ * Breathing room between the top of the viewport and the logo, per environment:
+ *
+ *  - a real safe-area inset (native iOS, Android) already covers the status bar,
+ *    so only a small gap is added,
+ *  - the installed iPhone app gets a slightly wider gap because the viewport
+ *    begins right under the status bar and the logo needs air around it,
+ *  - a desktop browser window stays as tight as it has always been.
  */
 function homeHeaderTopGap(insetsTop: number) {
-  return insetsTop > 0 ? 8 : 10;
+  if (insetsTop > 0) return 8;
+  return isStandaloneWebApp() ? 13 : 10;
 }
 
 /**

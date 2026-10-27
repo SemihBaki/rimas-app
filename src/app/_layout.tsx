@@ -13,6 +13,7 @@ import {
 
 import { ToastProvider } from '@/components/toast';
 import { Colors, Layout, Shadow } from '@/constants/theme';
+import { isStandaloneWebApp } from '@/lib/standalone';
 import { useAuth } from '@/store/auth';
 import { useShop } from '@/store/shop';
 import { startAccountSync } from '@/store/sync';
@@ -39,12 +40,7 @@ let standaloneTopInset: number | null = null;
 function readStandaloneTopInset(): number {
   if (standaloneTopInset !== null) return standaloneTopInset;
 
-  const standalone =
-    typeof window !== 'undefined' &&
-    (window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true);
-
-  if (!standalone) {
+  if (!isStandaloneWebApp()) {
     standaloneTopInset = 0;
     return standaloneTopInset;
   }
@@ -65,42 +61,6 @@ function StandaloneStatusBarInset({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const fallbackTop = useSyncExternalStore(noopSubscribe, readStandaloneTopInset, () => 0);
   const extraTop = insets.top === 0 ? fallbackTop : 0;
-
-  // Temporary calibration probe — remove once the iPhone layout is settled.
-  useEffect(() => {
-    if (Platform.OS !== 'web') return;
-
-    const probe = document.createElement('div');
-    probe.style.cssText =
-      'position:fixed;top:0;left:0;width:1px;height:1px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);';
-    document.body.appendChild(probe);
-    const styles = getComputedStyle(probe);
-    const report = {
-      envTop: parseFloat(styles.paddingTop) || 0,
-      envBottom: parseFloat(styles.paddingBottom) || 0,
-      innerHeight: window.innerHeight,
-      innerWidth: window.innerWidth,
-      screenHeight: window.screen.height,
-      screenWidth: window.screen.width,
-      dpr: window.devicePixelRatio,
-      standalone:
-        window.matchMedia('(display-mode: standalone)').matches ||
-        (navigator as Navigator & { standalone?: boolean }).standalone === true,
-      mediaHeight: window.matchMedia('(display-mode: standalone)').media,
-      effectiveTop: insets.top,
-      fallbackTop,
-      extraTop,
-      viewportInset: window.innerHeight < window.screen.height - 4,
-      ua: navigator.userAgent,
-    };
-    probe.remove();
-
-    fetch('/api/diag', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(report),
-    }).catch(() => {});
-  }, [insets.top, fallbackTop, extraTop]);
 
   return (
     <SafeAreaInsetsContext.Provider
