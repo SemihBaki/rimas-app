@@ -65,11 +65,24 @@ export function ScreenHeader({ title, onBack, right, style, tone = 'dark' }: Scr
 }
 
 /**
- * Height of the brand bar below the safe area (top padding + logo + bottom
- * padding). Screens that overlay the bar — the home hero does — subtract this
- * to know when the bar has fully cleared the content underneath.
+ * The brand bar sits inside the safe area, so the breathing room below the
+ * status bar is tuned per shape: none under a Dynamic Island / notch (the inset
+ * already carries the gap), a little on Android, and the airy 10 pt on a desktop
+ * browser where there is no status bar at all.
  */
-export const HOME_HEADER_CONTENT_HEIGHT = 48;
+function homeHeaderTopGap(insetsTop: number) {
+  if (insetsTop >= 44) return 0; // iPhone notch / Dynamic Island
+  if (insetsTop > 0) return 6; // Android status bar
+  return 10; // desktop browser
+}
+
+/**
+ * Height of the brand bar below the safe area (top gap + logo + bottom padding).
+ * Screens that overlay the bar — the home hero does — subtract this to know when
+ * the bar has fully cleared the content underneath.
+ */
+export const homeHeaderContentHeight = (insetsTop: number) =>
+  homeHeaderTopGap(insetsTop) + 48;
 
 /** Brand bar for the home screen; sits above the hero image. */
 export function HomeHeader({ light = false }: { light?: boolean }) {
@@ -80,9 +93,9 @@ export function HomeHeader({ light = false }: { light?: boolean }) {
   return (
     <View
       style={{
-        paddingTop: insets.top + 2,
+        paddingTop: insets.top + homeHeaderTopGap(insets.top),
         paddingHorizontal: Layout.gutter,
-        paddingBottom: 8,
+        paddingBottom: 10,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

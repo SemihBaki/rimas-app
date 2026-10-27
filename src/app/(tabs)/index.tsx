@@ -24,7 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand-mark';
-import { HomeHeader, HOME_HEADER_CONTENT_HEIGHT } from '@/components/header';
+import { HomeHeader, homeHeaderContentHeight } from '@/components/header';
 import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
 import { Gutter } from '@/components/screen';
@@ -111,7 +111,7 @@ export default function HomeScreen() {
   // fully transparent: dark over the hero photo, warm paper over the content.
   const headerSwitchAt = Math.max(
     0,
-    heroHeight - insets.top - HOME_HEADER_CONTENT_HEIGHT
+    heroHeight - insets.top - homeHeaderContentHeight(insets.top)
   );
   const inkHeaderStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
