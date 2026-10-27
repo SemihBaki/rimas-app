@@ -22,11 +22,17 @@ SplashScreen.preventAutoHideAsync();
 const noopSubscribe = () => () => {};
 
 /**
- * iPhone "Ana Ekrana Ekle" modunda web görünümü durum çubuğunun altına kadar
- * uzar, ama Safari `env(safe-area-inset-top)` değerini 0 bildirir. Bu yüzden
- * üst boşluk cihazın durum çubuğu yüksekliğiyle telafi edilir; Dynamic Island
- * ve çentikli modeller farklı yükseklik kullandığı için ekran yüksekliğine
- * göre seçilir. Değer istemcide bir kez hesaplanır (sunucuda 0).
+ * iPhone "Ana Ekrana Ekle" modunda iki durum olabilir:
+ *
+ *  - Web görünümü durum çubuğunun ALTINDAN başlar (varsayılan durum çubuğu
+ *    stili). Bu durumda `innerHeight` ekrandan kısa olur ve `env(...top)` 0
+ *    gelir çünkü zaten kaçınılacak bir alan yoktur — ekstra boşluk EKLENMEZ.
+ *  - Web görünümü tam ekrandır (içerik durum çubuğunun altına uzanır). O zaman
+ *    `innerHeight` ekran yüksekliğine eşittir ve eksik olan güvenli alan cihazın
+ *    durum çubuğu yüksekliğiyle telafi edilir.
+ *
+ * Ölçümler iPhone 16 Plus'ta (430×932, innerHeight 873, env top 0) doğrulandı;
+ * ilk sürüm bu farkı ayırt etmediği için boşluk iki kez sayılıyordu.
  */
 let standaloneTopInset: number | null = null;
 
@@ -43,6 +49,13 @@ function readStandaloneTopInset(): number {
     return standaloneTopInset;
   }
 
+  // Görünüm zaten durum çubuğunun altından başlıyorsa boşluk zaten var.
+  const viewportAlreadyInset = window.innerHeight < window.screen.height - 4;
+  if (viewportAlreadyInset) {
+    standaloneTopInset = 0;
+    return standaloneTopInset;
+  }
+
   const screenHeight = window.screen.height;
   standaloneTopInset = screenHeight >= 850 ? 59 : screenHeight >= 800 ? 47 : screenHeight >= 700 ? 20 : 0;
   return standaloneTopInset;
@@ -52,6 +65,42 @@ function StandaloneStatusBarInset({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
   const fallbackTop = useSyncExternalStore(noopSubscribe, readStandaloneTopInset, () => 0);
   const extraTop = insets.top === 0 ? fallbackTop : 0;
+
+  // Temporary calibration probe — remove once the iPhone layout is settled.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:1px;height:1px;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);';
+    document.body.appendChild(probe);
+    const styles = getComputedStyle(probe);
+    const report = {
+      envTop: parseFloat(styles.paddingTop) || 0,
+      envBottom: parseFloat(styles.paddingBottom) || 0,
+      innerHeight: window.innerHeight,
+      innerWidth: window.innerWidth,
+      screenHeight: window.screen.height,
+      screenWidth: window.screen.width,
+      dpr: window.devicePixelRatio,
+      standalone:
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true,
+      mediaHeight: window.matchMedia('(display-mode: standalone)').media,
+      effectiveTop: insets.top,
+      fallbackTop,
+      extraTop,
+      viewportInset: window.innerHeight < window.screen.height - 4,
+      ua: navigator.userAgent,
+    };
+    probe.remove();
+
+    fetch('/api/diag', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(report),
+    }).catch(() => {});
+  }, [insets.top, fallbackTop, extraTop]);
 
   return (
     <SafeAreaInsetsContext.Provider

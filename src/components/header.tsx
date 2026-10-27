@@ -66,14 +66,12 @@ export function ScreenHeader({ title, onBack, right, style, tone = 'dark' }: Scr
 
 /**
  * The brand bar sits inside the safe area, so the breathing room below the
- * status bar is tuned per shape: none under a Dynamic Island / notch (the inset
- * already carries the gap), a little on Android, and the airy 10 pt on a desktop
- * browser where there is no status bar at all.
+ * status bar is tuned per shape: a small gap when the system already reported a
+ * safe area (native iOS, Android), and the airy 10 pt when the viewport itself
+ * starts at the top edge (desktop browser, iPhone PWA with an inset viewport).
  */
 function homeHeaderTopGap(insetsTop: number) {
-  if (insetsTop >= 44) return 0; // iPhone notch / Dynamic Island
-  if (insetsTop > 0) return 6; // Android status bar
-  return 10; // desktop browser
+  return insetsTop > 0 ? 8 : 10;
 }
 
 /**
