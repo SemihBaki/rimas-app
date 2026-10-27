@@ -27,7 +27,7 @@ export function ScreenHeader({ title, onBack, right, style, tone = 'dark' }: Scr
     <View
       style={[
         {
-          paddingTop: insets.top,
+          paddingTop: insets.top + 4,
           backgroundColor: Colors.paper,
           borderBottomWidth: 1,
           borderBottomColor: Colors.line,
@@ -73,7 +73,7 @@ export function HomeHeader({ light = false }: { light?: boolean }) {
   return (
     <View
       style={{
-        paddingTop: insets.top + 6,
+        paddingTop: insets.top + 10,
         paddingHorizontal: Layout.gutter,
         paddingBottom: 10,
         flexDirection: 'row',

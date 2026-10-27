@@ -27,7 +27,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
         backgroundColor: Colors.paper,
         borderTopWidth: 1,
         borderTopColor: Colors.line,
-        paddingBottom: insets.bottom,
+        paddingBottom: insets.bottom + 4,
       }}>
       <View style={{ flexDirection: 'row', height: Layout.tabBarHeight }}>
         {state.routes.map((route, index) => {
