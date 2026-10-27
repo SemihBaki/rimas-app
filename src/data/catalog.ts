@@ -300,6 +300,59 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
+export type SizeGuide = {
+  title: string;
+  /** Column labels; the first column is always the size itself. */
+  columns: string[];
+  rows: { size: string; values: number[] }[];
+  note: string;
+  tips: { title: string; copy: string }[];
+};
+
+/** Body measurements in centimetres, not garment measurements. */
+const TOP_GUIDE: SizeGuide = {
+  title: 'Üst Giyim',
+  columns: ['Göğüs', 'Bel', 'Kalça'],
+  rows: [
+    { size: 'XS', values: [80, 62, 88] },
+    { size: 'S', values: [84, 66, 92] },
+    { size: 'M', values: [88, 70, 96] },
+    { size: 'L', values: [94, 76, 102] },
+    { size: 'XL', values: [100, 82, 108] },
+  ],
+  note: 'Ölçüler vücut ölçüsüdür, ürün ölçüsü değildir. İki beden arasında kaldıysanız büyük olanı seçin.',
+  tips: [
+    { title: 'Göğüs', copy: 'Mezurayı koltuk altından geçirip sırtın en geniş noktasından ölçün.' },
+    { title: 'Bel', copy: 'Gövdenin en ince yerinde, mezurayı sıkmadan ölçün.' },
+    { title: 'Kalça', copy: 'Kalçanın en geniş noktasından, ayaklar birleşikken ölçün.' },
+  ],
+};
+
+const BOTTOM_GUIDE: SizeGuide = {
+  title: 'Alt Giyim',
+  columns: ['Bel', 'Kalça', 'İç Bacak'],
+  rows: [
+    { size: '24', values: [61, 86, 76] },
+    { size: '26', values: [66, 91, 76] },
+    { size: '28', values: [71, 96, 77] },
+    { size: '30', values: [76, 101, 77] },
+    { size: '32', values: [81, 106, 78] },
+  ],
+  note: 'Ölçüler vücut ölçüsüdür, ürün ölçüsü değildir. Denim kullanıldıkça oturur; arada kaldıysanız küçük bedeni seçin.',
+  tips: [
+    { title: 'Bel', copy: 'Göbeğin hemen üstünde, pantolonun oturmasını istediğiniz hizada ölçün.' },
+    { title: 'Kalça', copy: 'Kalçanın en geniş noktasından, ayaklar birleşikken ölçün.' },
+    { title: 'İç Bacak', copy: 'Kasıktan topuğa kadar olan mesafeyi ölçün.' },
+  ],
+};
+
+/** Size tables exist for garments that are chosen by body size. */
+export function sizeGuideFor(product: Product): SizeGuide | null {
+  if (product.category === 'denim') return BOTTOM_GUIDE;
+  if (product.category === 'aksesuar') return null;
+  return TOP_GUIDE;
+}
+
 export type Editorial = {
   id: string;
   kicker: string;

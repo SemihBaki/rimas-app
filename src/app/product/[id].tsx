@@ -18,10 +18,11 @@ import { PrimaryButton, TextButton } from '@/components/button';
 import { ProductCard } from '@/components/product-card';
 import { Rule } from '@/components/screen';
 import { SectionHeading } from '@/components/section-heading';
+import { SizeGuideSheet } from '@/components/size-guide';
 import { useToast } from '@/components/toast';
 import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typography';
 import { Colors, Layout, Spacing } from '@/constants/theme';
-import { categoryName, getProduct, relatedProducts } from '@/data/catalog';
+import { categoryName, getProduct, relatedProducts, sizeGuideFor } from '@/data/catalog';
 import { formatPrice } from '@/lib/format';
 import { buildMetadata, firstParam } from '@/lib/seo';
 import { useShop } from '@/store/shop';
@@ -62,6 +63,7 @@ export default function ProductScreen() {
   );
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   const pageWidth = Math.min(width, Layout.maxWidth);
 
@@ -76,6 +78,7 @@ export default function ProductScreen() {
 
   const color = product.colors[colorIndex];
   const related = relatedProducts(product);
+  const guide = sizeGuideFor(product);
 
   const handleAdd = () => {
     if (!size) {
@@ -249,11 +252,13 @@ export default function ProductScreen() {
         <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 26 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Label>Beden</Label>
-            <TextButton
-              label="Beden tablosu"
-              underline={false}
-              onPress={() => toast.show('Beden tablosu yakında')}
-            />
+            {guide ? (
+              <TextButton
+                label="Beden tablosu"
+                underline={false}
+                onPress={() => setSizeGuideOpen(true)}
+              />
+            ) : null}
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
             {product.sizes.map((option) => {
@@ -263,7 +268,11 @@ export default function ProductScreen() {
                 <Pressable
                   key={option}
                   accessibilityRole="button"
-                  accessibilityLabel={`${option} beden`}
+                  accessibilityLabel={
+                    option.toLocaleLowerCase('tr').startsWith('tek ')
+                      ? option
+                      : `${option} beden`
+                  }
                   disabled={soldOut}
                   onPress={() => {
                     Haptics.selectionAsync().catch(() => {});
@@ -387,6 +396,18 @@ export default function ProductScreen() {
           onPress={handleAdd}
         />
       </View>
+
+      <SizeGuideSheet
+        visible={sizeGuideOpen}
+        product={product}
+        selectedSize={size}
+        onClose={() => setSizeGuideOpen(false)}
+        onSelect={(chosen) => {
+          Haptics.selectionAsync().catch(() => {});
+          setSize(chosen);
+          setSizeGuideOpen(false);
+        }}
+      />
     </View>
   );
 }
