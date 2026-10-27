@@ -2,10 +2,14 @@ import { useFonts } from 'expo-font';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  SafeAreaInsetsContext,
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import { ToastProvider } from '@/components/toast';
 import { Colors, Layout, Shadow } from '@/constants/theme';
@@ -16,6 +20,46 @@ import { startAccountSync } from '@/store/sync';
 SplashScreen.preventAutoHideAsync();
 
 const noopSubscribe = () => () => {};
+
+/**
+ * iPhone "Ana Ekrana Ekle" modunda web görünümü durum çubuğunun altına kadar
+ * uzar, ama Safari `env(safe-area-inset-top)` değerini 0 bildirir. Bu yüzden
+ * üst boşluk cihazın durum çubuğu yüksekliğiyle telafi edilir; Dynamic Island
+ * ve çentikli modeller farklı yükseklik kullandığı için ekran yüksekliğine
+ * göre seçilir. Değer istemcide bir kez hesaplanır (sunucuda 0).
+ */
+let standaloneTopInset: number | null = null;
+
+function readStandaloneTopInset(): number {
+  if (standaloneTopInset !== null) return standaloneTopInset;
+
+  const standalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
+  if (!standalone) {
+    standaloneTopInset = 0;
+    return standaloneTopInset;
+  }
+
+  const screenHeight = window.screen.height;
+  standaloneTopInset = screenHeight >= 850 ? 59 : screenHeight >= 800 ? 47 : screenHeight >= 700 ? 20 : 0;
+  return standaloneTopInset;
+}
+
+function StandaloneStatusBarInset({ children }: { children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const fallbackTop = useSyncExternalStore(noopSubscribe, readStandaloneTopInset, () => 0);
+  const extraTop = insets.top === 0 ? fallbackTop : 0;
+
+  return (
+    <SafeAreaInsetsContext.Provider
+      value={extraTop ? { ...insets, top: insets.top + extraTop } : insets}>
+      {children}
+    </SafeAreaInsetsContext.Provider>
+  );
+}
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -67,40 +111,42 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ThemeProvider value={navigationTheme}>
-          <StatusBar style="dark" />
-          <View style={styles.desktopBackdrop}>
-            <View style={styles.frame}>
-              <ToastProvider>
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: Colors.paper },
-                    animation: 'slide_from_right',
-                  }}>
-                  <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
-                  <Stack.Screen name="product/[id]" />
-                  <Stack.Screen name="collection/[slug]" />
-                  <Stack.Screen
-                    name="search"
-                    options={{ animation: 'fade_from_bottom', presentation: 'modal' }}
-                  />
-                  <Stack.Screen
-                    name="sign-in"
-                    options={{ animation: 'fade_from_bottom', presentation: 'modal' }}
-                  />
-                  <Stack.Screen name="orders" />
-                  <Stack.Screen name="checkout" />
-                  <Stack.Screen
-                    name="order/[id]"
-                    options={{ animation: 'fade', gestureEnabled: false }}
-                  />
-                  <Stack.Screen name="about" />
-                </Stack>
-              </ToastProvider>
+        <StandaloneStatusBarInset>
+          <ThemeProvider value={navigationTheme}>
+            <StatusBar style="dark" />
+            <View style={styles.desktopBackdrop}>
+              <View style={styles.frame}>
+                <ToastProvider>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: Colors.paper },
+                      animation: 'slide_from_right',
+                    }}>
+                    <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
+                    <Stack.Screen name="product/[id]" />
+                    <Stack.Screen name="collection/[slug]" />
+                    <Stack.Screen
+                      name="search"
+                      options={{ animation: 'fade_from_bottom', presentation: 'modal' }}
+                    />
+                    <Stack.Screen
+                      name="sign-in"
+                      options={{ animation: 'fade_from_bottom', presentation: 'modal' }}
+                    />
+                    <Stack.Screen name="orders" />
+                    <Stack.Screen name="checkout" />
+                    <Stack.Screen
+                      name="order/[id]"
+                      options={{ animation: 'fade', gestureEnabled: false }}
+                    />
+                    <Stack.Screen name="about" />
+                  </Stack>
+                </ToastProvider>
+              </View>
             </View>
-          </View>
-        </ThemeProvider>
+          </ThemeProvider>
+        </StandaloneStatusBarInset>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
