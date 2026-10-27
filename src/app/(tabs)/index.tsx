@@ -77,6 +77,27 @@ export default function HomeScreen() {
   const editorial = EDITORIALS[0];
   const story = EDITORIALS[1];
 
+  // The brand bar floats above the page: it stays put while the hero scrolls
+  // away, then crossfades from paper to ink once the dark hero is no longer
+  // behind it. Background stays transparent the whole time.
+  const headerSwitchAt = Math.max(0, heroHeight - insets.top - 58);
+  const inkHeaderStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [headerSwitchAt - 60, headerSwitchAt],
+      [0, 1],
+      Extrapolation.CLAMP
+    ),
+  }));
+  const paperHeaderStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [headerSwitchAt - 60, headerSwitchAt],
+      [1, 0],
+      Extrapolation.CLAMP
+    ),
+  }));
+
   return (
     <View style={{ flex: 1, backgroundColor: Colors.paper }}>
       <Animated.ScrollView
@@ -100,10 +121,6 @@ export default function HomeScreen() {
             locations={[0, 0.42, 1]}
             style={StyleSheet.absoluteFill}
           />
-
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
-            <HomeHeader light />
-          </View>
 
           <Animated.View
             style={[
@@ -371,6 +388,25 @@ export default function HomeScreen() {
 
         <View style={{ height: insets.bottom + 80 }} />
       </Animated.ScrollView>
+
+      <View style={styles.floatingHeader} pointerEvents="box-none">
+        <Animated.View style={paperHeaderStyle} pointerEvents="none">
+          <HomeHeader light />
+        </Animated.View>
+        <Animated.View style={[StyleSheet.absoluteFill, inkHeaderStyle]}>
+          <HomeHeader />
+        </Animated.View>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+});
