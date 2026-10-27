@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -79,7 +80,8 @@ export default function HomeScreen() {
 
   // The brand bar floats above the page: it stays put while the hero scrolls
   // away, then crossfades from paper to ink once the dark hero is no longer
-  // behind it. Background stays transparent the whole time.
+  // behind it. A frosted-glass plate sits underneath so the bar never turns
+  // fully transparent: dark over the hero photo, warm paper over the content.
   const headerSwitchAt = Math.max(0, heroHeight - insets.top - 58);
   const inkHeaderStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -93,6 +95,22 @@ export default function HomeScreen() {
     opacity: interpolate(
       scrollY.value,
       [headerSwitchAt - 60, headerSwitchAt],
+      [1, 0],
+      Extrapolation.CLAMP
+    ),
+  }));
+  const lightGlassStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [headerSwitchAt - 90, headerSwitchAt - 10],
+      [0, 1],
+      Extrapolation.CLAMP
+    ),
+  }));
+  const darkGlassStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      scrollY.value,
+      [headerSwitchAt - 90, headerSwitchAt - 10],
       [1, 0],
       Extrapolation.CLAMP
     ),
@@ -390,6 +408,29 @@ export default function HomeScreen() {
       </Animated.ScrollView>
 
       <View style={styles.floatingHeader} pointerEvents="box-none">
+        {/* Frosted plate: dark over the hero, warm paper over the page. */}
+        <Animated.View
+          style={[StyleSheet.absoluteFill, darkGlassStyle]}
+          pointerEvents="none">
+          <BlurView
+            intensity={26}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[StyleSheet.absoluteFill, styles.darkGlassVeil]} />
+        </Animated.View>
+        <Animated.View
+          style={[StyleSheet.absoluteFill, lightGlassStyle]}
+          pointerEvents="none">
+          <BlurView
+            intensity={40}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[StyleSheet.absoluteFill, styles.lightGlassVeil]} />
+          <View style={styles.glassHairline} />
+        </Animated.View>
+
         <Animated.View style={paperHeaderStyle} pointerEvents="none">
           <HomeHeader light />
         </Animated.View>
@@ -408,5 +449,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+  },
+  darkGlassVeil: {
+    backgroundColor: 'rgba(17,17,16,0.06)',
+  },
+  lightGlassVeil: {
+    backgroundColor: 'rgba(247,245,241,0.22)',
+  },
+  glassHairline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(17,17,16,0.10)',
   },
 });
