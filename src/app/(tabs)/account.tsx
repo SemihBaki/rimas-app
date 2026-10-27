@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand-mark';
@@ -9,6 +10,7 @@ import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typ
 import { Colors, Layout } from '@/constants/theme';
 import { formatPrice } from '@/lib/format';
 import { buildMetadata } from '@/lib/seo';
+import { useAuth } from '@/store/auth';
 import { useFavorites, useShop } from '@/store/shop';
 
 export const generateMetadata = () =>
@@ -32,8 +34,16 @@ export default function AccountScreen() {
   const toast = useToast();
   const favorites = useFavorites();
   const lastOrder = useShop((state) => state.lastOrder);
+  const user = useAuth((state) => state.user);
+  const authStatus = useAuth((state) => state.status);
+  const signOut = useAuth((state) => state.signOut);
+  const [signingOut, setSigningOut] = useState(false);
 
   const onMenuPress = (label: string) => {
+    if (label === 'Siparişlerim') {
+      router.push('/orders');
+      return;
+    }
     if (label === 'Favorilerim') {
       router.push('/favorites');
       return;
@@ -42,11 +52,14 @@ export default function AccountScreen() {
       router.push('/about');
       return;
     }
-    if (label === 'Siparişlerim' && lastOrder) {
-      router.push(`/order/${lastOrder.number}`);
-      return;
-    }
     toast.show(`${label} yakında hizmetinizde`);
+  };
+
+  const onSignOut = async () => {
+    setSigningOut(true);
+    await signOut();
+    setSigningOut(false);
+    toast.show('Çıkış yapıldı');
   };
 
   return (
@@ -59,7 +72,7 @@ export default function AccountScreen() {
           </Display>
         </View>
 
-        {/* Sign-in block */}
+        {/* Account block */}
         <View
           style={{
             marginTop: 24,
@@ -69,34 +82,82 @@ export default function AccountScreen() {
             padding: 20,
             backgroundColor: Colors.surface,
           }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-            }}>
-            <View style={{ flex: 1 }}>
-              <BodyStrong style={{ fontSize: 15 }}>Siparişlerinizi takip edin</BodyStrong>
-              <Small style={{ marginTop: 5, fontSize: 11.5 }}>
-                E-posta ile giriş yapın; adresler ve sipariş geçmişi tek yerde.
-              </Small>
+          {authStatus === 'loading' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <ActivityIndicator size="small" color={Colors.inkMuted} />
+              <Small style={{ fontSize: 11 }}>Oturum kontrol ediliyor…</Small>
             </View>
-            <Ionicons name="person-outline" size={22} color={Colors.ink} />
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => toast.show('Giriş yakında aktif olacak')}
-            style={({ pressed }) => ({
-              marginTop: 16,
-              height: 46,
-              backgroundColor: Colors.ink,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.8 : 1,
-            })}>
-            <Label style={{ color: Colors.paper, letterSpacing: 1.8 }}>Giriş yap / üye ol</Label>
-          </Pressable>
+          ) : authStatus === 'signedIn' && user ? (
+            <>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}>
+                <View style={{ flex: 1 }}>
+                  <Label style={{ color: Colors.inkMuted, letterSpacing: 2 }}>Hesabım</Label>
+                  <BodyStrong style={{ fontSize: 17, marginTop: 7 }}>{user.name}</BodyStrong>
+                  <Small style={{ marginTop: 4, fontSize: 11 }}>{user.email}</Small>
+                </View>
+                <Ionicons name="person-circle-outline" size={26} color={Colors.ink} />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Çıkış yap"
+                disabled={signingOut}
+                onPress={onSignOut}
+                style={({ pressed }) => ({
+                  marginTop: 16,
+                  height: 44,
+                  borderWidth: 1,
+                  borderColor: Colors.ink,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: signingOut ? 0.5 : pressed ? 0.7 : 1,
+                })}>
+                {signingOut ? (
+                  <ActivityIndicator size="small" color={Colors.ink} />
+                ) : (
+                  <Label style={{ color: Colors.ink, letterSpacing: 1.8 }}>Çıkış yap</Label>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}>
+                <View style={{ flex: 1 }}>
+                  <BodyStrong style={{ fontSize: 15 }}>Siparişlerinizi takip edin</BodyStrong>
+                  <Small style={{ marginTop: 5, fontSize: 11.5 }}>
+                    E-posta ile giriş yapın; favoriler ve sipariş geçmişi tek yerde.
+                  </Small>
+                </View>
+                <Ionicons name="person-outline" size={22} color={Colors.ink} />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/sign-in')}
+                style={({ pressed }) => ({
+                  marginTop: 16,
+                  height: 46,
+                  backgroundColor: Colors.ink,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.8 : 1,
+                })}>
+                <Label style={{ color: Colors.paper, letterSpacing: 1.8 }}>
+                  Giriş yap / üye ol
+                </Label>
+              </Pressable>
+            </>
+          )}
         </View>
 
         {/* Last order */}

@@ -9,7 +9,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ToastProvider } from '@/components/toast';
 import { Colors, Layout, Shadow } from '@/constants/theme';
+import { useAuth } from '@/store/auth';
 import { useShop } from '@/store/shop';
+import { startAccountSync } from '@/store/sync';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,6 +53,13 @@ export default function RootLayout() {
     }
   }, [ready]);
 
+  // Restore the session and start favorites sync once, on the client only
+  // (effects never run during server rendering).
+  useEffect(() => {
+    void useAuth.getState().bootstrap();
+    startAccountSync();
+  }, []);
+
   if (!ready) {
     return null;
   }
@@ -76,6 +85,11 @@ export default function RootLayout() {
                     name="search"
                     options={{ animation: 'fade_from_bottom', presentation: 'modal' }}
                   />
+                  <Stack.Screen
+                    name="sign-in"
+                    options={{ animation: 'fade_from_bottom', presentation: 'modal' }}
+                  />
+                  <Stack.Screen name="orders" />
                   <Stack.Screen name="checkout" />
                   <Stack.Screen
                     name="order/[id]"

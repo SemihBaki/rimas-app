@@ -161,7 +161,8 @@ export default function ProductScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Favorilere ekle"
+            accessibilityLabel={favorite ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+            accessibilityState={{ selected: favorite }}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               toggleFavorite(product.id);

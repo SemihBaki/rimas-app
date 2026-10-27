@@ -2,27 +2,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
-  TextInput,
   View,
-  type KeyboardTypeOptions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/button';
 import { EmptyState } from '@/components/empty-state';
+import { TextField as Field } from '@/components/field';
 import { ScreenHeader } from '@/components/header';
 import { Rule } from '@/components/screen';
 import { useToast } from '@/components/toast';
 import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typography';
 import { Colors, Layout } from '@/constants/theme';
-import { estimatedDelivery, formatPrice, orderNumber } from '@/lib/format';
+import { ApiError, api } from '@/lib/api';
+import { formatPrice } from '@/lib/format';
 import { buildMetadata } from '@/lib/seo';
+import { useAuth } from '@/store/auth';
 import {
   FREE_SHIPPING_THRESHOLD,
   useCartLines,
@@ -45,6 +46,7 @@ export default function CheckoutScreen() {
   const lines = useCartLines();
   const subtotal = useCartSubtotal();
   const completeOrder = useShop((state) => state.completeOrder);
+  const user = useAuth((state) => state.user);
 
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
@@ -59,13 +61,24 @@ export default function CheckoutScreen() {
   const [cvv, setCvv] = useState('');
   const [shipment, setShipment] = useState<ShippingMethod>('standart');
   const [submitting, setSubmitting] = useState(false);
+  const [placed, setPlaced] = useState(false);
+  const prefilled = useRef(false);
+
+  // Signed-in shoppers should not retype their contact details. Values already
+  // typed by a guest are never overwritten.
+  useEffect(() => {
+    if (!user || prefilled.current) return;
+    prefilled.current = true;
+    setEmail((value) => value || user.email);
+    setFullName((value) => value || user.name);
+    setPhone((value) => value || user.phone || '');
+  }, [user]);
 
   const standardShipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 49.9;
   const shippingCost = shipment === 'express' ? 89.9 : standardShipping;
   const total = Math.round((subtotal + shippingCost) * 100) / 100;
-  const itemCount = lines.reduce((count, line) => count + line.qty, 0);
 
-  if (lines.length === 0) {
+  if (lines.length === 0 && !placed) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.paper }}>
         <ScreenHeader title="Ödeme" />
@@ -95,7 +108,7 @@ export default function CheckoutScreen() {
     return null;
   };
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     const error = validate();
     if (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
@@ -104,20 +117,55 @@ export default function CheckoutScreen() {
     }
 
     setSubmitting(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 
-    const number = orderNumber();
-    setTimeout(() => {
-      completeOrder({
-        number,
-        total,
-        itemCount,
-        email,
-        delivery: estimatedDelivery(),
+    try {
+      const data = await api<{
+        order: { number: string; total: number; itemCount: number; email: string; delivery: string };
+      }>('/api/orders', {
+        method: 'POST',
+        body: {
+          email,
+          name: fullName,
+          phone,
+          address,
+          city,
+          district,
+          postalCode,
+          shipping: shipment,
+          items: lines.map((line) => ({
+            productId: line.productId,
+            name: line.product.name,
+            size: line.size,
+            color: line.color,
+            qty: line.qty,
+            price: line.product.price,
+          })),
+        },
       });
+
+      const { order } = data;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+      setPlaced(true);
+      completeOrder({
+        number: order.number,
+        total: order.total,
+        itemCount: order.itemCount,
+        email: order.email,
+        delivery: order.delivery,
+      });
+      router.replace({
+        pathname: '/order/[id]',
+        params: { id: order.number, fresh: '1' },
+      });
+    } catch (caught) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      toast.show(
+        caught instanceof ApiError ? caught.message : 'Sipariş oluşturulamadı. Tekrar deneyin.'
+      );
+    } finally {
       setSubmitting(false);
-      router.replace(`/order/${number}`);
-    }, 900);
+    }
   };
 
   return (
@@ -139,6 +187,30 @@ export default function CheckoutScreen() {
             Teslimat ve ödeme bilgilerinizi tamamlayın. Bu bir demo mağazadır; kart
             bilgileri saklanmaz.
           </Body>
+
+          {user ? (
+            <Small style={{ marginTop: 14, fontSize: 11 }}>
+              {user.email} ile giriş yapıldı; bilgileriniz hazır.
+            </Small>
+          ) : (
+            <View
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 }}>
+              <Small style={{ fontSize: 11 }}>Hesabınız var mı?</Small>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/sign-in')}
+                style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                <View
+                  style={{
+                    borderBottomWidth: 1,
+                    borderBottomColor: Colors.ink,
+                    paddingBottom: 1,
+                  }}>
+                  <Small style={{ fontSize: 11, color: Colors.ink }}>Giriş yapın</Small>
+                </View>
+              </Pressable>
+            </View>
+          )}
 
           {/* Contact */}
           <Section title="01 — İletişim" style={{ marginTop: 30 }}>
@@ -372,55 +444,6 @@ function Section({
     <View style={style}>
       <Label style={{ color: Colors.inkMuted, letterSpacing: 1.8 }}>{title}</Label>
       <View style={{ marginTop: 10 }}>{children}</View>
-    </View>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType,
-  autoCapitalize,
-  multiline,
-  maxLength,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  placeholder?: string;
-  keyboardType?: KeyboardTypeOptions;
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  multiline?: boolean;
-  maxLength?: number;
-}) {
-  return (
-    <View style={{ marginBottom: 12 }}>
-      <Small style={{ fontSize: 10.5, marginBottom: 5 }}>{label}</Small>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={Colors.inkMuted}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
-        multiline={multiline}
-        maxLength={maxLength}
-        style={{
-          minHeight: multiline ? 66 : 44,
-          borderWidth: 1,
-          borderColor: Colors.lineStrong,
-          backgroundColor: Colors.surface,
-          paddingHorizontal: 12,
-          paddingTop: multiline ? 11 : 0,
-          paddingBottom: multiline ? 11 : 0,
-          fontFamily: 'Inter',
-          fontSize: 13,
-          color: Colors.ink,
-          textAlignVertical: multiline ? 'top' : 'center',
-        }}
-      />
     </View>
   );
 }
