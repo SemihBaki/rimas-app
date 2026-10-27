@@ -5,12 +5,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   View,
   useWindowDimensions,
+  type ViewStyle,
 } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -45,6 +47,31 @@ const SERVICES = [
   { icon: 'refresh-outline', title: '30 Gün İade', copy: 'Koşulsuz' },
   { icon: 'shield-checkmark-outline', title: 'Güvenli Ödeme', copy: '256-bit SSL' },
 ] as const;
+
+/**
+ * The frosted plate reaches a little past the bar so the glass can dissolve
+ * instead of ending on a hard edge. On the web the live blur is masked with a
+ * gradient (the PWA target); native keeps a clean edge, which is the iOS norm.
+ */
+const glassPlate = [
+  StyleSheet.absoluteFill,
+  Platform.OS === 'web' ? { bottom: -22 } : null,
+];
+
+const glassFeather =
+  Platform.OS === 'web'
+    ? ({
+        maskImage:
+          'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) calc(100% - 30px), rgba(0,0,0,0) 100%)',
+      } as ViewStyle)
+    : null;
+
+/** The veil fades where the plate feathers out, so no line is left behind. */
+const glassVeilLocations: [number, number, number] =
+  Platform.OS === 'web' ? [0, 0.78, 1] : [0, 0.9, 1];
+
+const DARK_GLASS = 'rgba(17,17,16,0.10)';
+const LIGHT_GLASS = 'rgba(247,245,241,0.24)';
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
@@ -415,9 +442,13 @@ export default function HomeScreen() {
           <BlurView
             intensity={26}
             tint="dark"
-            style={StyleSheet.absoluteFill}
+            style={[glassPlate, glassFeather]}
           />
-          <View style={[StyleSheet.absoluteFill, styles.darkGlassVeil]} />
+          <LinearGradient
+            colors={[DARK_GLASS, DARK_GLASS, 'rgba(17,17,16,0)']}
+            locations={glassVeilLocations}
+            style={glassPlate}
+          />
         </Animated.View>
         <Animated.View
           style={[StyleSheet.absoluteFill, lightGlassStyle]}
@@ -425,10 +456,13 @@ export default function HomeScreen() {
           <BlurView
             intensity={40}
             tint="light"
-            style={StyleSheet.absoluteFill}
+            style={[glassPlate, glassFeather]}
           />
-          <View style={[StyleSheet.absoluteFill, styles.lightGlassVeil]} />
-          <View style={styles.glassHairline} />
+          <LinearGradient
+            colors={[LIGHT_GLASS, LIGHT_GLASS, 'rgba(247,245,241,0)']}
+            locations={glassVeilLocations}
+            style={glassPlate}
+          />
         </Animated.View>
 
         <Animated.View style={paperHeaderStyle} pointerEvents="none">
@@ -449,19 +483,5 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-  },
-  darkGlassVeil: {
-    backgroundColor: 'rgba(17,17,16,0.06)',
-  },
-  lightGlassVeil: {
-    backgroundColor: 'rgba(247,245,241,0.22)',
-  },
-  glassHairline: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(17,17,16,0.10)',
   },
 });
