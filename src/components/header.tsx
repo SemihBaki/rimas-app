@@ -64,6 +64,13 @@ export function ScreenHeader({ title, onBack, right, style, tone = 'dark' }: Scr
   );
 }
 
+/**
+ * Height of the brand bar below the safe area (top padding + logo + bottom
+ * padding). Screens that overlay the bar — the home hero does — subtract this
+ * to know when the bar has fully cleared the content underneath.
+ */
+export const HOME_HEADER_CONTENT_HEIGHT = 48;
+
 /** Brand bar for the home screen; sits above the hero image. */
 export function HomeHeader({ light = false }: { light?: boolean }) {
   const insets = useSafeAreaInsets();
@@ -73,9 +80,9 @@ export function HomeHeader({ light = false }: { light?: boolean }) {
   return (
     <View
       style={{
-        paddingTop: insets.top + 10,
+        paddingTop: insets.top + 2,
         paddingHorizontal: Layout.gutter,
-        paddingBottom: 10,
+        paddingBottom: 8,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

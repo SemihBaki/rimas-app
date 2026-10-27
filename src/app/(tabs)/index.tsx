@@ -24,7 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand-mark';
-import { HomeHeader } from '@/components/header';
+import { HomeHeader, HOME_HEADER_CONTENT_HEIGHT } from '@/components/header';
 import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
 import { Gutter } from '@/components/screen';
@@ -109,7 +109,10 @@ export default function HomeScreen() {
   // away, then crossfades from paper to ink once the dark hero is no longer
   // behind it. A frosted-glass plate sits underneath so the bar never turns
   // fully transparent: dark over the hero photo, warm paper over the content.
-  const headerSwitchAt = Math.max(0, heroHeight - insets.top - 58);
+  const headerSwitchAt = Math.max(
+    0,
+    heroHeight - insets.top - HOME_HEADER_CONTENT_HEIGHT
+  );
   const inkHeaderStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollY.value,
