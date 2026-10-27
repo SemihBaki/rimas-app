@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
   useWindowDimensions,
+  type StyleProp,
   type ViewStyle,
 } from 'react-native';
 import Animated, {
@@ -49,26 +50,28 @@ const SERVICES = [
 ] as const;
 
 /**
- * The frosted plate reaches a little past the bar so the glass can dissolve
- * instead of ending on a hard edge. On the web the live blur is masked with a
- * gradient (the PWA target); native keeps a clean edge, which is the iOS norm.
+ * The frosted plate reaches past the bar so the glass can dissolve instead of
+ * ending on a hard edge. The solid part has to cover the whole bar — logo
+ * included — otherwise the lower half of the logo sits on weaker blur and the
+ * image behind starts to show through it. So the fade starts at the bar's bottom
+ * edge and completes in the overhang below it. Native keeps a clean edge, which
+ * is the iOS norm.
  */
-const glassPlate = [
-  StyleSheet.absoluteFill,
-  Platform.OS === 'web' ? { bottom: -22 } : null,
-];
+const GLASS_OVERHANG = 22;
 
-const glassFeather =
-  Platform.OS === 'web'
-    ? ({
-        maskImage:
-          'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) calc(100% - 30px), rgba(0,0,0,0) 100%)',
-      } as ViewStyle)
-    : null;
+/** Full-strength glass down to `barHeight`, then a soft dissolve to nothing. */
+function glassFeather(barHeight: number): ViewStyle {
+  const end = barHeight + GLASS_OVERHANG;
+  return {
+    maskImage: `linear-gradient(to bottom, rgba(0,0,0,1) 0px, rgba(0,0,0,1) ${barHeight}px, rgba(0,0,0,0) ${end}px)`,
+  } as ViewStyle;
+}
 
 /** The veil fades where the plate feathers out, so no line is left behind. */
-const glassVeilLocations: [number, number, number] =
-  Platform.OS === 'web' ? [0, 0.78, 1] : [0, 0.9, 1];
+function glassVeilLocations(barHeight: number): [number, number, number] {
+  if (Platform.OS !== 'web') return [0, 0.9, 1];
+  return [0, barHeight / (barHeight + GLASS_OVERHANG), 1];
+}
 
 const DARK_GLASS = 'rgba(17,17,16,0.10)';
 const LIGHT_GLASS = 'rgba(247,245,241,0.24)';
@@ -109,10 +112,15 @@ export default function HomeScreen() {
   // away, then crossfades from paper to ink once the dark hero is no longer
   // behind it. A frosted-glass plate sits underneath so the bar never turns
   // fully transparent: dark over the hero photo, warm paper over the content.
-  const headerSwitchAt = Math.max(
-    0,
-    heroHeight - insets.top - homeHeaderContentHeight(insets.top)
-  );
+  const barHeight = homeHeaderContentHeight(insets.top);
+  const glassPlate: StyleProp<ViewStyle> =
+    Platform.OS === 'web'
+      ? [StyleSheet.absoluteFill, { bottom: -GLASS_OVERHANG }]
+      : StyleSheet.absoluteFill;
+  const feather = Platform.OS === 'web' ? glassFeather(barHeight) : null;
+  const veilLocations = glassVeilLocations(barHeight);
+
+  const headerSwitchAt = Math.max(0, heroHeight - insets.top - barHeight);
   const inkHeaderStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollY.value,
@@ -445,11 +453,11 @@ export default function HomeScreen() {
           <BlurView
             intensity={26}
             tint="dark"
-            style={[glassPlate, glassFeather]}
+            style={[glassPlate, feather]}
           />
           <LinearGradient
             colors={[DARK_GLASS, DARK_GLASS, 'rgba(17,17,16,0)']}
-            locations={glassVeilLocations}
+            locations={veilLocations}
             style={glassPlate}
           />
         </Animated.View>
@@ -459,11 +467,11 @@ export default function HomeScreen() {
           <BlurView
             intensity={40}
             tint="light"
-            style={[glassPlate, glassFeather]}
+            style={[glassPlate, feather]}
           />
           <LinearGradient
             colors={[LIGHT_GLASS, LIGHT_GLASS, 'rgba(247,245,241,0)']}
-            locations={glassVeilLocations}
+            locations={veilLocations}
             style={glassPlate}
           />
         </Animated.View>
