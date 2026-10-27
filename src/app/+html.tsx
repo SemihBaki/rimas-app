@@ -16,6 +16,14 @@ export default function Root({ children }: { children: ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="theme-color" content="#F7F5F1" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="RİMAS" />
+        <meta name="application-name" content="RİMAS" />
         <ScrollViewStyleReset />
         {headNodes}
       </head>

@@ -10,7 +10,8 @@
     "backgroundColor": "#F7F5F1",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rimas.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +20,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.rimas.app"
     },
     "web": {
       "output": "server",
@@ -40,6 +42,17 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "f0331e75-201a-459f-b967-aebeb965ffde"
+      }
+    },
+    "owner": "semihbakiaydin"
   }
 }

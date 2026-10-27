@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { GenerateMetadataFunction } from 'expo-router/server';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -64,6 +64,14 @@ export default function ProductScreen() {
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
+  const addedTimer = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (addedTimer.current) clearTimeout(addedTimer.current);
+    };
+  }, []);
 
   const pageWidth = Math.min(width, Layout.maxWidth);
 
@@ -88,7 +96,9 @@ export default function ProductScreen() {
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     addToCart(product.id, size, color.name, quantity);
-    toast.show('Ürün sepete eklendi');
+    setJustAdded(true);
+    if (addedTimer.current) clearTimeout(addedTimer.current);
+    addedTimer.current = setTimeout(() => setJustAdded(false), 3000);
   };
 
   return (
@@ -397,6 +407,37 @@ export default function ProductScreen() {
           onPress={handleAdd}
         />
       </View>
+
+      {justAdded ? (
+        <View
+          style={{
+            position: 'absolute',
+            left: Layout.gutter,
+            right: Layout.gutter,
+            bottom: insets.bottom + 82,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: Colors.ink,
+            paddingHorizontal: 18,
+            height: 52,
+            gap: 12,
+          }}>
+          <Body tone='paper' style={{ fontSize: 12.5 }}>
+            Ürün sepete eklendi
+          </Body>
+          <Pressable
+            accessibilityRole='button'
+            onPress={() => {
+              setJustAdded(false);
+              if (addedTimer.current) clearTimeout(addedTimer.current);
+              router.push('/cart');
+            }}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+            <Label style={{ color: Colors.paper, letterSpacing: 2 }}>SEPETE GİT</Label>
+          </Pressable>
+        </View>
+      ) : null}
 
       <SizeGuideSheet
         visible={sizeGuideOpen}
