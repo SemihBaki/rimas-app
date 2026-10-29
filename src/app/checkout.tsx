@@ -22,14 +22,16 @@ import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typ
 import { Colors, Layout } from '@/constants/theme';
 import { ApiError, api } from '@/lib/api';
 import { formatPrice } from '@/lib/format';
+import {
+  EXPRESS_SHIPPING,
+  calculateTotals,
+  shippingFor,
+  vatLabel,
+  type ShippingMethod,
+} from '@/lib/pricing';
 import { buildMetadata } from '@/lib/seo';
 import { useAuth } from '@/store/auth';
-import {
-  FREE_SHIPPING_THRESHOLD,
-  useCartLines,
-  useCartSubtotal,
-  useShop,
-} from '@/store/shop';
+import { useCartLines, useShop } from '@/store/shop';
 
 export const generateMetadata = () =>
   buildMetadata({
@@ -38,13 +40,10 @@ export const generateMetadata = () =>
     noIndex: true,
   });
 
-type ShippingMethod = 'standart' | 'express';
-
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const lines = useCartLines();
-  const subtotal = useCartSubtotal();
   const completeOrder = useShop((state) => state.completeOrder);
   const user = useAuth((state) => state.user);
 
@@ -74,9 +73,12 @@ export default function CheckoutScreen() {
     setPhone((value) => value || user.phone || '');
   }, [user]);
 
-  const standardShipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 49.9;
-  const shippingCost = shipment === 'express' ? 89.9 : standardShipping;
-  const total = Math.round((subtotal + shippingCost) * 100) / 100;
+  const totals = calculateTotals(
+    lines.map((line) => ({ net: line.lineNet, vatRate: line.vatRate })),
+    shipment
+  );
+  const standardShipping = shippingFor(totals.netTotal, 'standart');
+  const total = totals.total;
 
   if (lines.length === 0 && !placed) {
     return (
@@ -120,7 +122,16 @@ export default function CheckoutScreen() {
 
     try {
       const data = await api<{
-        order: { number: string; total: number; itemCount: number; email: string; delivery: string };
+        order: {
+          number: string;
+          total: number;
+          itemCount: number;
+          email: string;
+          delivery: string;
+          subtotal: number;
+          vatTotal: number;
+          shippingCost: number;
+        };
       }>('/api/orders', {
         method: 'POST',
         body: {
@@ -134,11 +145,10 @@ export default function CheckoutScreen() {
           shipping: shipment,
           items: lines.map((line) => ({
             productId: line.productId,
-            name: line.product.name,
+            packId: line.packId,
             size: line.size,
             color: line.color,
             qty: line.qty,
-            price: line.product.price,
           })),
         },
       });
@@ -153,6 +163,9 @@ export default function CheckoutScreen() {
         itemCount: order.itemCount,
         email: order.email,
         delivery: order.delivery,
+        netTotal: order.subtotal,
+        vatTotal: order.vatTotal,
+        shippingCost: order.shippingCost,
       });
       router.replace({
         pathname: '/order/[id]',
@@ -288,7 +301,7 @@ export default function CheckoutScreen() {
             <ShippingOption
               title="Express"
               hint="1–2 iş günü"
-              price={formatPrice(89.9)}
+              price={formatPrice(EXPRESS_SHIPPING)}
               selected={shipment === 'express'}
               onPress={() => setShipment('express')}
             />
@@ -368,19 +381,30 @@ export default function CheckoutScreen() {
                       {line.product.name}
                     </BodyStrong>
                     <Small style={{ fontSize: 10, marginTop: 2 }}>
-                      {line.color} · {line.size} · {line.qty} adet
+                      {line.color} · {line.title} · ×{line.qty}
+                    </Small>
+                    <Small style={{ fontSize: 9.5, marginTop: 1 }}>
+                      {line.detail} · {line.pieceCount} parça
                     </Small>
                   </View>
-                  <Money value={formatPrice(line.lineTotal)} size={11.5} />
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Money value={formatPrice(line.lineNet)} size={11.5} />
+                    <Small style={{ fontSize: 9, marginTop: 2 }}>+ KDV</Small>
+                  </View>
                 </View>
               ))}
             </View>
 
             <Rule style={{ marginTop: 16, marginBottom: 14 }} />
-            <SummaryRow label="Ara toplam" value={formatPrice(subtotal)} />
+            <SummaryRow label="Ara toplam (KDV hariç)" value={formatPrice(totals.netTotal)} />
+            <SummaryRow
+              label={vatLabel()}
+              value={formatPrice(totals.vatTotal)}
+              style={{ marginTop: 8 }}
+            />
             <SummaryRow
               label={shipment === 'express' ? 'Express kargo' : 'Standart kargo'}
-              value={shippingCost === 0 ? 'Ücretsiz' : formatPrice(shippingCost)}
+              value={totals.shippingCost === 0 ? 'Ücretsiz' : formatPrice(totals.shippingCost)}
               style={{ marginTop: 8 }}
             />
             <View

@@ -44,7 +44,7 @@ export const generateMetadata = () =>
   });
 
 const SERVICES = [
-  { icon: 'cube-outline', title: 'Ücretsiz Kargo', copy: '2.000 ₺ üzeri' },
+  { icon: 'cube-outline', title: 'Ücretsiz Kargo', copy: '5.000 ₺ üzeri' },
   { icon: 'refresh-outline', title: '30 Gün İade', copy: 'Koşulsuz' },
   { icon: 'shield-checkmark-outline', title: 'Güvenli Ödeme', copy: '256-bit SSL' },
 ] as const;

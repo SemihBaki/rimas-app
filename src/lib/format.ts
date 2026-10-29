@@ -19,6 +19,15 @@ export function formatDate(iso: string): string {
   return `${day}.${month}.${date.getFullYear()}`;
 }
 
+/**
+ * "M beden", but keeps one-size labels such as "Tek Beden" as they are,
+ * so the UI never says "Tek Beden beden".
+ */
+export function sizeLabel(size?: string | null): string {
+  if (!size) return 'Tek beden';
+  return size.toLocaleLowerCase('tr').startsWith('tek ') ? size : `${size} beden`;
+}
+
 export function orderNumber(): string {
   const stamp = Date.now().toString().slice(-6);
   return `RM-${stamp}`;

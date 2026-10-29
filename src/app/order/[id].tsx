@@ -12,7 +12,8 @@ import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typ
 import { Colors, Layout } from '@/constants/theme';
 import { PRODUCTS } from '@/data/catalog';
 import { ApiError, api } from '@/lib/api';
-import { formatDate, formatPrice } from '@/lib/format';
+import { formatDate, formatPrice, sizeLabel } from '@/lib/format';
+import { vatLabel } from '@/lib/pricing';
 import { buildMetadata, firstParam } from '@/lib/seo';
 import { useAuth } from '@/store/auth';
 import { useShop } from '@/store/shop';
@@ -34,6 +35,11 @@ type RemoteOrderItem = {
   color: string;
   qty: number;
   price: number;
+  packId: string | null;
+  packLabel: string | null;
+  packPieces: number;
+  unitPrice: number;
+  vatRate: number;
 };
 
 type RemoteOrder = {
@@ -48,6 +54,7 @@ type RemoteOrder = {
   shipping: 'standart' | 'express';
   itemCount: number;
   subtotal: number;
+  vatTotal: number;
   shippingCost: number;
   total: number;
   delivery: string;
@@ -245,6 +252,23 @@ export default function OrderScreen() {
               ) : null}
               <DetailRow label="Tahmini teslim" value={order.delivery} />
               <DetailRow label="Ürün" value={`${order.itemCount} parça`} />
+              {!remote && lastOrder && lastOrder.netTotal !== undefined ? (
+                <>
+                  <DetailRow
+                    label="Ara toplam (KDV hariç)"
+                    value={formatPrice(lastOrder.netTotal)}
+                  />
+                  <DetailRow label={vatLabel()} value={formatPrice(lastOrder.vatTotal ?? 0)} />
+                  <DetailRow
+                    label="Kargo"
+                    value={
+                      lastOrder.shippingCost === 0
+                        ? 'Ücretsiz'
+                        : formatPrice(lastOrder.shippingCost ?? 0)
+                    }
+                  />
+                </>
+              ) : null}
               <DetailRow label="Toplam" value={formatPrice(order.total)} money />
 
               {order.email ? (
@@ -295,7 +319,12 @@ export default function OrderScreen() {
                             {item.name}
                           </BodyStrong>
                           <Small style={{ fontSize: 10, marginTop: 3 }}>
-                            {item.color} · {item.size} · {item.qty} adet
+                            {item.color} · {item.packLabel ?? 'Tek parça'} · ×{item.qty}
+                          </Small>
+                          <Small style={{ fontSize: 9.5, marginTop: 1 }}>
+                            {item.packId
+                              ? `${item.packPieces * item.qty} parça`
+                              : sizeLabel(item.size)}
                           </Small>
                         </View>
                         <Money value={formatPrice(item.price * item.qty)} size={12} />
@@ -312,7 +341,8 @@ export default function OrderScreen() {
                     borderTopColor: Colors.line,
                     gap: 8,
                   }}>
-                  <TotalRow label="Ara toplam" value={formatPrice(remote.subtotal)} />
+                  <TotalRow label="Ara toplam (KDV hariç)" value={formatPrice(remote.subtotal)} />
+                  <TotalRow label={vatLabel()} value={formatPrice(remote.vatTotal)} />
                   <TotalRow
                     label={remote.shipping === 'express' ? 'Express kargo' : 'Standart kargo'}
                     value={

@@ -1,6 +1,6 @@
 import { currentUser } from '@/server/auth';
 import { EMAIL_PATTERN, fail, normalizeEmail, ok, readJson, text } from '@/server/http';
-import { createOrder, listOrders, type OrderInput, type OrderItemInput } from '@/server/orders';
+import { createOrder, listOrders, type OrderInput } from '@/server/orders';
 
 type Body = {
   email?: unknown;
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     district,
     postalCode: text(body.postalCode, 10),
     shipping: body.shipping === 'express' ? 'express' : 'standart',
-    items: (Array.isArray(body.items) ? body.items : []) as OrderItemInput[],
+    items: body.items,
   };
 
   const user = currentUser(request);

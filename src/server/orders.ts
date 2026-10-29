@@ -1,16 +1,52 @@
+import {
+  PRODUCTS,
+  packAvailable,
+  packLabel,
+  packNetPrice,
+  packPieces,
+} from '@/data/catalog';
+import {
+  VAT_RATE,
+  calculateTotals,
+  roundMoney,
+  type ShippingMethod,
+} from '@/lib/pricing';
+
 import { db, newOrderNumber, nowIso } from './db';
 
-export const FREE_SHIPPING_THRESHOLD = 2000;
-export const STANDARD_SHIPPING = 49.9;
-export const EXPRESS_SHIPPING = 89.9;
+export { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING, EXPRESS_SHIPPING } from '@/lib/pricing';
 
+/**
+ * Orders never carry prices from the client. The API resolves each line
+ * against the catalogue and derives the amount, so a tampered request cannot
+ * change what a pack costs.
+ */
 export type OrderItemInput = {
   productId: string;
-  name: string;
-  size: string;
+  packId: string | null;
+  size: string | null;
   color: string;
   qty: number;
+};
+
+/** What gets stored and shown: a frozen copy of the catalogue at order time. */
+export type OrderItem = {
+  productId: string;
+  name: string;
+  /** Pack lines store an empty string; single pieces store the size. */
+  size: string;
+  color: string;
+  /** Number of packs (or pieces on single-piece lines). */
+  qty: number;
+  /** Net price of one cart unit. */
   price: number;
+  packId: string | null;
+  packLabel: string | null;
+  /** Pieces included in one cart unit. */
+  packPieces: number;
+  /** Net price of one piece. */
+  unitPrice: number;
+  vatRate: number;
 };
 
 export type OrderInput = {
@@ -21,11 +57,9 @@ export type OrderInput = {
   city?: string;
   district?: string;
   postalCode?: string;
-  shipping: 'standart' | 'express';
-  items: OrderItemInput[];
+  shipping: ShippingMethod;
+  items: unknown;
 };
-
-export type OrderItem = OrderItemInput;
 
 export type OrderSummary = {
   number: string;
@@ -36,9 +70,10 @@ export type OrderSummary = {
   city: string | null;
   district: string | null;
   postalCode: string | null;
-  shipping: 'standart' | 'express';
+  shipping: ShippingMethod;
   itemCount: number;
   subtotal: number;
+  vatTotal: number;
   shippingCost: number;
   total: number;
   delivery: string;
@@ -57,18 +92,15 @@ type OrderRow = {
   city: string | null;
   district: string | null;
   postal_code: string | null;
-  shipping: 'standart' | 'express';
-  item_count: number;
+  shipping: ShippingMethod;
   subtotal: number;
+  vat_total: number;
   shipping_cost: number;
   total: number;
+  item_count: number;
   delivery: string;
   created_at: string;
 };
-
-function round(value: number) {
-  return Math.round(value * 100) / 100;
-}
 
 /** DD.MM in Turkish convention, skipping weekends. */
 function deliveryDate(businessDays: number): string {
@@ -84,39 +116,82 @@ function deliveryDate(businessDays: number): string {
   return `${dd}.${mm}`;
 }
 
-function sanitizeItems(items: unknown): OrderItemInput[] | null {
-  if (!Array.isArray(items) || items.length === 0 || items.length > 40) return null;
+function resolveItems(input: unknown): OrderItem[] | null {
+  if (!Array.isArray(input) || input.length === 0 || input.length > 40) return null;
 
-  const clean: OrderItemInput[] = [];
-  for (const entry of items) {
+  const clean: OrderItem[] = [];
+  for (const entry of input) {
     if (!entry || typeof entry !== 'object') return null;
-    const item = entry as Record<string, unknown>;
-    const qty = Number(item.qty);
-    const price = Number(item.price);
-    const productId = typeof item.productId === 'string' ? item.productId.slice(0, 60) : '';
-    const name = typeof item.name === 'string' ? item.name.slice(0, 120) : '';
-    const size = typeof item.size === 'string' ? item.size.slice(0, 20) : '';
-    const color = typeof item.color === 'string' ? item.color.slice(0, 40) : '';
+    const raw = entry as Record<string, unknown>;
 
-    if (!productId || !name || !size) return null;
-    if (!Number.isFinite(qty) || qty < 1 || qty > 10) return null;
-    if (!Number.isFinite(price) || price < 0 || price > 100000) return null;
+    const productId = typeof raw.productId === 'string' ? raw.productId : '';
+    const product = PRODUCTS.find((item) => item.id === productId);
+    if (!product) return null;
 
-    clean.push({ productId, name, size, color, qty: Math.floor(qty), price: round(price) });
+    const qty = Number(raw.qty);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 50) return null;
+
+    const color = typeof raw.color === 'string' ? raw.color.trim().slice(0, 40) : '';
+    if (!color) return null;
+
+    const vatRate = product.vatRate ?? VAT_RATE;
+    const packId = typeof raw.packId === 'string' && raw.packId ? raw.packId : null;
+
+    if (packId) {
+      const pack = product.packs.find((item) => item.id === packId);
+      if (!pack || !packAvailable(product, pack)) return null;
+      clean.push({
+        productId,
+        name: product.name,
+        size: '',
+        color,
+        qty,
+        price: packNetPrice(product, pack),
+        packId: pack.id,
+        packLabel: packLabel(pack),
+        packPieces: packPieces(pack),
+        unitPrice: product.unitPrice,
+        vatRate,
+      });
+      continue;
+    }
+
+    // Single-piece lines exist only where the company enabled the exception.
+    if (!product.allowSinglePiece) return null;
+    const size = typeof raw.size === 'string' ? raw.size : '';
+    if (!size || !product.sizes.includes(size)) return null;
+    if (product.soldOutSizes?.includes(size)) return null;
+
+    clean.push({
+      productId,
+      name: product.name,
+      size,
+      color,
+      qty,
+      price: product.unitPrice,
+      packId: null,
+      packLabel: null,
+      packPieces: 1,
+      unitPrice: product.unitPrice,
+      vatRate,
+    });
   }
+
   return clean;
 }
 
 export function createOrder(input: OrderInput, userId: string | null): OrderSummary {
-  const items = sanitizeItems(input.items);
+  const items = resolveItems(input.items);
   if (!items) throw new Error('INVALID_ITEMS');
 
-  const subtotal = round(items.reduce((sum, item) => sum + item.price * item.qty, 0));
-  const shipping = input.shipping === 'express' ? 'express' : 'standart';
-  const shippingCost =
-    shipping === 'express' ? EXPRESS_SHIPPING : subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING;
-  const total = round(subtotal + shippingCost);
-  const itemCount = items.reduce((count, item) => count + item.qty, 0);
+  const shipping: ShippingMethod = input.shipping === 'express' ? 'express' : 'standart';
+
+  const totals = calculateTotals(
+    items.map((item) => ({ net: roundMoney(item.price * item.qty), vatRate: item.vatRate })),
+    shipping
+  );
+
+  const itemCount = items.reduce((count, item) => count + item.packPieces * item.qty, 0);
   const number = newOrderNumber();
   const createdAt = nowIso();
   const delivery = deliveryDate(shipping === 'express' ? 1 : 3);
@@ -125,8 +200,8 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
   database
     .prepare(
       `INSERT INTO orders (number, user_id, email, name, phone, address, city, district, postal_code,
-                           shipping, subtotal, shipping_cost, total, item_count, delivery, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                           shipping, subtotal, vat_total, shipping_cost, total, item_count, delivery, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       number,
@@ -139,20 +214,35 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
       input.district ?? null,
       input.postalCode ?? null,
       shipping,
-      subtotal,
-      shippingCost,
-      total,
+      totals.netTotal,
+      totals.vatTotal,
+      totals.shippingCost,
+      totals.total,
       itemCount,
       delivery,
       createdAt
     );
 
   const insertItem = database.prepare(
-    `INSERT INTO order_items (order_number, product_id, name, size, color, qty, price)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO order_items (order_number, product_id, name, size, color, qty, price,
+                              pack_id, pack_label, pack_pieces, unit_price, vat_rate)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   for (const item of items) {
-    insertItem.run(number, item.productId, item.name, item.size, item.color, item.qty, item.price);
+    insertItem.run(
+      number,
+      item.productId,
+      item.name,
+      item.size,
+      item.color,
+      item.qty,
+      item.price,
+      item.packId,
+      item.packLabel,
+      item.packPieces,
+      item.unitPrice,
+      item.vatRate
+    );
   }
 
   return {
@@ -166,9 +256,10 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
     postalCode: input.postalCode ?? null,
     shipping,
     itemCount,
-    subtotal,
-    shippingCost,
-    total,
+    subtotal: totals.netTotal,
+    vatTotal: totals.vatTotal,
+    shippingCost: totals.shippingCost,
+    total: totals.total,
     delivery,
     status: 'hazirlaniyor',
     createdAt,
@@ -176,17 +267,28 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
   };
 }
 
+type ItemRow = {
+  product_id: string;
+  name: string;
+  size: string;
+  color: string;
+  qty: number;
+  price: number;
+  pack_id: string | null;
+  pack_label: string | null;
+  pack_pieces: number;
+  unit_price: number;
+  vat_rate: number;
+};
+
 function itemsFor(number: string): OrderItem[] {
   const rows = db()
-    .prepare('SELECT product_id, name, size, color, qty, price FROM order_items WHERE order_number = ?')
-    .all(number) as {
-    product_id: string;
-    name: string;
-    size: string;
-    color: string;
-    qty: number;
-    price: number;
-  }[];
+    .prepare(
+      `SELECT product_id, name, size, color, qty, price, pack_id, pack_label,
+              pack_pieces, unit_price, vat_rate
+       FROM order_items WHERE order_number = ?`
+    )
+    .all(number) as ItemRow[];
 
   return rows.map((row) => ({
     productId: row.product_id,
@@ -195,6 +297,11 @@ function itemsFor(number: string): OrderItem[] {
     color: row.color,
     qty: row.qty,
     price: row.price,
+    packId: row.pack_id,
+    packLabel: row.pack_label,
+    packPieces: row.pack_pieces || 1,
+    unitPrice: row.unit_price || row.price,
+    vatRate: row.vat_rate || VAT_RATE,
   }));
 }
 
@@ -211,6 +318,7 @@ function toSummary(row: OrderRow, withItems: boolean): OrderSummary {
     shipping: row.shipping,
     itemCount: row.item_count,
     subtotal: row.subtotal,
+    vatTotal: row.vat_total,
     shippingCost: row.shipping_cost,
     total: row.total,
     delivery: row.delivery,

@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS orders (
   postal_code TEXT,
   shipping TEXT NOT NULL,
   subtotal REAL NOT NULL,
+  vat_total REAL NOT NULL DEFAULT 0,
   shipping_cost REAL NOT NULL,
   total REAL NOT NULL,
   item_count INTEGER NOT NULL,
@@ -57,10 +58,15 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_number TEXT NOT NULL REFERENCES orders(number) ON DELETE CASCADE,
   product_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  size TEXT NOT NULL,
+  size TEXT NOT NULL DEFAULT '',
   color TEXT NOT NULL,
   qty INTEGER NOT NULL,
-  price REAL NOT NULL
+  price REAL NOT NULL,
+  pack_id TEXT,
+  pack_label TEXT,
+  pack_pieces INTEGER NOT NULL DEFAULT 1,
+  unit_price REAL NOT NULL DEFAULT 0,
+  vat_rate REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS favorites (
@@ -75,6 +81,30 @@ function databasePath() {
   const configured = process.env.RIMAS_DB_PATH?.trim();
   if (configured) return configured;
   return join(process.cwd(), '.data', 'rimas.db');
+}
+
+/**
+ * Databases created before the wholesale model keep their data; missing
+ * columns are added in place instead of dropping tables.
+ */
+function addColumnIfMissing(
+  instance: DatabaseSync,
+  table: string,
+  column: string,
+  definition: string
+) {
+  const columns = instance.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (columns.some((entry) => entry.name === column)) return;
+  instance.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
+function migrate(instance: DatabaseSync) {
+  addColumnIfMissing(instance, 'orders', 'vat_total', 'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(instance, 'order_items', 'pack_id', 'TEXT');
+  addColumnIfMissing(instance, 'order_items', 'pack_label', 'TEXT');
+  addColumnIfMissing(instance, 'order_items', 'pack_pieces', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing(instance, 'order_items', 'unit_price', 'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(instance, 'order_items', 'vat_rate', 'REAL NOT NULL DEFAULT 0');
 }
 
 export function db(): DatabaseSync {
@@ -96,6 +126,7 @@ export function db(): DatabaseSync {
   }
   instance.exec('PRAGMA foreign_keys = ON');
   instance.exec(SCHEMA);
+  migrate(instance);
   handle = instance;
   return instance;
 }

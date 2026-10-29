@@ -13,16 +13,43 @@ export type CategoryId =
   | 'denim'
   | 'aksesuar';
 
+/** One size inside a pack: how many pieces of that size the pack contains. */
+export type PackUnit = {
+  size: string;
+  qty: number;
+};
+
+/**
+ * A pack ("seri") is the unit the company actually sells: a fixed size
+ * distribution such as 2×S, 2×M, 1×L. The shopper cannot rearrange it — they
+ * only choose how many packs they want.
+ */
+export type ProductPack = {
+  id: string;
+  /** Optional company-facing name, e.g. "Standart seri". */
+  label?: string;
+  units: PackUnit[];
+};
+
 export type Product = {
   id: string;
   name: string;
   category: CategoryId;
-  price: number;
-  compareAt?: number;
+  /** Net price of a single piece, VAT excluded. Pack prices derive from it. */
+  unitPrice: number;
+  /** Former / list price per piece, used for the strikethrough. */
+  listUnitPrice?: number;
+  /** Overrides the catalogue default (0.10) when a product ever needs it. */
+  vatRate?: number;
   badge?: string;
   colors: ColorOption[];
+  /** Size pool: used by the size guide and by single-piece sales. */
   sizes: string[];
   soldOutSizes?: string[];
+  /** Empty when the product is only sold per piece. */
+  packs: ProductPack[];
+  /** Exception flag: lets this product be bought one piece at a time. */
+  allowSinglePiece: boolean;
   images: ImageSource[];
   summary: string;
   details: string[];
@@ -82,8 +109,8 @@ export const PRODUCTS: Product[] = [
     id: 'trench',
     name: 'Yün Karışımlı Trençkot',
     category: 'dis-giyim',
-    price: 4299.9,
-    compareAt: 5299.9,
+    unitPrice: 4299.9,
+    listUnitPrice: 5299.9,
     badge: 'Yeni',
     colors: [
       { name: 'Kum', hex: '#C9B69F' },
@@ -92,6 +119,18 @@ export const PRODUCTS: Product[] = [
     ],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
     soldOutSizes: ['XS'],
+    packs: [
+      {
+        id: 'trench-5',
+        label: 'Standart seri',
+        units: [
+          { size: 'S', qty: 2 },
+          { size: 'M', qty: 2 },
+          { size: 'L', qty: 1 },
+        ],
+      },
+    ],
+    allowSinglePiece: false,
     images: [
       require('../../assets/images/catalog/trench-1.jpg'),
       require('../../assets/images/catalog/trench-2.jpg'),
@@ -113,7 +152,7 @@ export const PRODUCTS: Product[] = [
     id: 'shirt',
     name: 'Oversize Poplin Gömlek',
     category: 'gomlek',
-    price: 1299.9,
+    unitPrice: 1299.9,
     badge: 'Yeni',
     colors: [
       { name: 'Beyaz', hex: '#F7F6F3' },
@@ -121,6 +160,27 @@ export const PRODUCTS: Product[] = [
       { name: 'Gök Mavisi', hex: '#AFC4D6' },
     ],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
+    packs: [
+      {
+        id: 'shirt-6',
+        label: 'Standart seri',
+        units: [
+          { size: 'S', qty: 2 },
+          { size: 'M', qty: 2 },
+          { size: 'L', qty: 2 },
+        ],
+      },
+      {
+        id: 'shirt-3',
+        label: 'Kısa seri',
+        units: [
+          { size: 'S', qty: 1 },
+          { size: 'M', qty: 1 },
+          { size: 'L', qty: 1 },
+        ],
+      },
+    ],
+    allowSinglePiece: true,
     images: [
       require('../../assets/images/catalog/shirt-1.jpg'),
       require('../../assets/images/catalog/shirt-2.jpg'),
@@ -142,7 +202,7 @@ export const PRODUCTS: Product[] = [
     id: 'dress',
     name: 'Saten Askılı Elbise',
     category: 'elbise',
-    price: 2499.9,
+    unitPrice: 2499.9,
     badge: 'Çok Satan',
     colors: [
       { name: 'Siyah', hex: '#141414' },
@@ -150,6 +210,18 @@ export const PRODUCTS: Product[] = [
     ],
     sizes: ['XS', 'S', 'M', 'L'],
     soldOutSizes: ['L'],
+    packs: [
+      {
+        id: 'dress-4',
+        label: 'Standart seri',
+        units: [
+          { size: 'S', qty: 1 },
+          { size: 'M', qty: 2 },
+          { size: 'L', qty: 1 },
+        ],
+      },
+    ],
+    allowSinglePiece: false,
     images: [
       require('../../assets/images/catalog/dress-1.jpg'),
       require('../../assets/images/catalog/dress-2.jpg'),
@@ -171,13 +243,25 @@ export const PRODUCTS: Product[] = [
     id: 'knit',
     name: 'Örgü Triko Kazak',
     category: 'triko',
-    price: 1899.9,
+    unitPrice: 1899.9,
     colors: [
       { name: 'Kum', hex: '#CDBBA6' },
       { name: 'Krem', hex: '#EFE7DA' },
       { name: 'Antrasit', hex: '#3A3A3C' },
     ],
     sizes: ['S', 'M', 'L', 'XL'],
+    packs: [
+      {
+        id: 'knit-5',
+        label: 'Standart seri',
+        units: [
+          { size: 'S', qty: 1 },
+          { size: 'M', qty: 2 },
+          { size: 'L', qty: 2 },
+        ],
+      },
+    ],
+    allowSinglePiece: false,
     images: [
       require('../../assets/images/catalog/knit-1.jpg'),
       require('../../assets/images/catalog/knit-2.jpg'),
@@ -199,14 +283,27 @@ export const PRODUCTS: Product[] = [
     id: 'denim',
     name: 'Yüksek Bel Geniş Paça Jean',
     category: 'denim',
-    price: 1699.9,
-    compareAt: 2099.9,
+    unitPrice: 1699.9,
+    listUnitPrice: 2099.9,
     colors: [
       { name: 'Açık Mavi', hex: '#A9BDD1' },
       { name: 'Indigo', hex: '#3D4E68' },
     ],
     sizes: ['24', '26', '28', '30', '32'],
     soldOutSizes: ['24'],
+    packs: [
+      {
+        id: 'denim-6',
+        label: 'Numara serisi',
+        units: [
+          { size: '26', qty: 1 },
+          { size: '28', qty: 2 },
+          { size: '30', qty: 2 },
+          { size: '32', qty: 1 },
+        ],
+      },
+    ],
+    allowSinglePiece: false,
     images: [
       require('../../assets/images/catalog/denim-1.jpg'),
       require('../../assets/images/catalog/denim-2.jpg'),
@@ -228,13 +325,15 @@ export const PRODUCTS: Product[] = [
     id: 'tote',
     name: 'Yumuşak Deri Çanta',
     category: 'aksesuar',
-    price: 3499.9,
+    unitPrice: 3499.9,
     badge: 'Yeni',
     colors: [
       { name: 'Tabac', hex: '#8B5E3C' },
       { name: 'Siyah', hex: '#141414' },
     ],
     sizes: ['Tek Beden'],
+    packs: [],
+    allowSinglePiece: true,
     images: [
       require('../../assets/images/catalog/bag-1.jpg'),
       require('../../assets/images/catalog/bag-2.jpg'),
@@ -256,9 +355,11 @@ export const PRODUCTS: Product[] = [
     id: 'necklace',
     name: 'Altın Kaplama Zincir Kolye',
     category: 'aksesuar',
-    price: 899.9,
+    unitPrice: 899.9,
     colors: [{ name: 'Altın', hex: '#C8A25C' }],
     sizes: ['Tek Beden'],
+    packs: [],
+    allowSinglePiece: true,
     images: [
       require('../../assets/images/catalog/jewel-1.jpg'),
       require('../../assets/images/catalog/jewel-2.jpg'),
@@ -275,12 +376,24 @@ export const PRODUCTS: Product[] = [
     id: 'blazer',
     name: 'Kruvaze Yün Blazer',
     category: 'dis-giyim',
-    price: 3799.9,
+    unitPrice: 3799.9,
     colors: [
       { name: 'Antrasit', hex: '#3A3A3C' },
       { name: 'Kum', hex: '#C9B69F' },
     ],
     sizes: ['XS', 'S', 'M', 'L'],
+    packs: [
+      {
+        id: 'blazer-5',
+        label: 'Standart seri',
+        units: [
+          { size: 'S', qty: 2 },
+          { size: 'M', qty: 2 },
+          { size: 'L', qty: 1 },
+        ],
+      },
+    ],
+    allowSinglePiece: false,
     images: [
       require('../../assets/images/catalog/blazer-1.jpg'),
       require('../../assets/images/catalog/blazer-2.jpg'),
@@ -402,3 +515,66 @@ export function relatedProducts(product: Product, limit = 4): Product[] {
   );
   return [...sameCategory, ...others].slice(0, limit);
 }
+
+/* ------------------------------- packs ---------------------------------- */
+
+/** Turkish suffix for "6'lı / 5'li / 3'lü" pack labels. */
+const PACK_SUFFIX: Record<number, string> = {
+  1: 'li',
+  2: 'li',
+  3: 'lü',
+  4: 'lü',
+  5: 'li',
+  6: 'lı',
+  7: 'li',
+  8: 'li',
+  9: 'lu',
+  10: 'lu',
+};
+
+/** Total pieces in one pack. */
+export function packPieces(pack: ProductPack): number {
+  return pack.units.reduce((total, unit) => total + unit.qty, 0);
+}
+
+/** Net price of one pack: unit price × pieces. Never stored, always derived. */
+export function packNetPrice(product: Product, pack: ProductPack): number {
+  return Math.round(product.unitPrice * packPieces(pack) * 100) / 100;
+}
+
+/** Net list price of one pack, when the product has a former price. */
+export function packListPrice(product: Product, pack: ProductPack): number | null {
+  if (!product.listUnitPrice) return null;
+  return Math.round(product.listUnitPrice * packPieces(pack) * 100) / 100;
+}
+
+/** "6'lı seri" */
+export function packLabel(pack: ProductPack): string {
+  const pieces = packPieces(pack);
+  return `${pieces}'${PACK_SUFFIX[pieces] ?? 'lı'} seri`;
+}
+
+/** "S ×2 · M ×2 · L ×2" */
+export function packDistribution(pack: ProductPack): string {
+  return pack.units.map((unit) => `${unit.size} ×${unit.qty}`).join(' · ');
+}
+
+/** A pack cannot ship when one of its sizes is sold out. */
+export function packAvailable(product: Product, pack: ProductPack): boolean {
+  if (!product.soldOutSizes?.length) return true;
+  return pack.units.every((unit) => !product.soldOutSizes?.includes(unit.size));
+}
+
+/** The pack shown on cards and in listings: the first one that can ship. */
+export function primaryPack(product: Product): ProductPack | null {
+  if (product.packs.length === 0) return null;
+  return product.packs.find((pack) => packAvailable(product, pack)) ?? product.packs[0];
+}
+
+/** Cheapest way to buy the product, used for "başlangıç fiyatı" displays. */
+export function entryPrice(product: Product): number {
+  const pack = primaryPack(product);
+  if (!pack) return product.unitPrice;
+  return packNetPrice(product, pack);
+}
+

@@ -22,10 +22,22 @@ import { SizeGuideSheet } from '@/components/size-guide';
 import { useToast } from '@/components/toast';
 import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typography';
 import { Colors, Layout, Spacing } from '@/constants/theme';
-import { categoryName, getProduct, relatedProducts, sizeGuideFor } from '@/data/catalog';
-import { formatPrice } from '@/lib/format';
+import {
+  categoryName,
+  getProduct,
+  packAvailable,
+  packDistribution,
+  packLabel,
+  packListPrice,
+  packNetPrice,
+  packPieces,
+  relatedProducts,
+  sizeGuideFor,
+} from '@/data/catalog';
+import { formatPrice, sizeLabel } from '@/lib/format';
+import { VAT_RATE, roundMoney } from '@/lib/pricing';
 import { buildMetadata, firstParam } from '@/lib/seo';
-import { useShop } from '@/store/shop';
+import { MAX_LINE_QTY, useShop } from '@/store/shop';
 
 export const generateMetadata: GenerateMetadataFunction = (_request, params) => {
   const product = getProduct(firstParam(params.id));
@@ -58,6 +70,10 @@ export default function ProductScreen() {
   );
 
   const [colorIndex, setColorIndex] = useState(0);
+  const [mode, setMode] = useState<'pack' | 'piece'>(
+    product && product.packs.length > 0 ? 'pack' : 'piece'
+  );
+  const [packIndex, setPackIndex] = useState(0);
   const [size, setSize] = useState<string | null>(
     product && product.sizes.length === 1 ? product.sizes[0] : null
   );
@@ -88,14 +104,33 @@ export default function ProductScreen() {
   const related = relatedProducts(product);
   const guide = sizeGuideFor(product);
 
+  const packs = product.packs;
+  const pack = mode === 'pack' && packs.length > 0 ? packs[Math.min(packIndex, packs.length - 1)] : null;
+  const piecesPerPack = pack ? packPieces(pack) : 1;
+  const vatRate = product.vatRate ?? VAT_RATE;
+  /** Net price of one cart unit: one pack, or one piece. */
+  const unitNet = pack ? packNetPrice(product, pack) : product.unitPrice;
+  const lineNet = roundMoney(unitNet * quantity);
+  const lineVat = roundMoney(lineNet * vatRate);
+  const listPrice = pack
+    ? packListPrice(product, pack)
+    : product.listUnitPrice ?? null;
+  const canBuy = mode === 'pack' ? Boolean(pack) : Boolean(size);
+
   const handleAdd = () => {
-    if (!size) {
+    if (!canBuy) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      toast.show('Lütfen bir beden seçin');
+      toast.show(mode === 'pack' ? 'Lütfen bir seri seçin' : 'Lütfen bir beden seçin');
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    addToCart(product.id, size, color.name, quantity);
+    addToCart({
+      productId: product.id,
+      packId: pack ? pack.id : null,
+      size: pack ? null : size,
+      color: color.name,
+      qty: quantity,
+    });
     setJustAdded(true);
     if (addedTimer.current) clearTimeout(addedTimer.current);
     addedTimer.current = setTimeout(() => setJustAdded(false), 3000);
@@ -194,18 +229,19 @@ export default function ProductScreen() {
           </Display>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <Money value={formatPrice(product.price)} size={15} />
-            {product.compareAt ? (
+            <Money value={formatPrice(unitNet)} size={15} />
+            <Label style={{ fontSize: 9, letterSpacing: 1.6 }}>+ KDV</Label>
+            {listPrice ? (
               <Small
                 style={{
                   textDecorationLine: 'line-through',
                   fontSize: 12.5,
                   color: Colors.inkMuted,
                 }}>
-                {formatPrice(product.compareAt)}
+                {formatPrice(listPrice)}
               </Small>
             ) : null}
-            {product.compareAt ? (
+            {listPrice ? (
               <View style={{ backgroundColor: Colors.ink, paddingHorizontal: 6, paddingVertical: 3 }}>
                 <Label style={{ color: Colors.paper, fontSize: 8, letterSpacing: 1 }}>
                   İndirim
@@ -213,6 +249,12 @@ export default function ProductScreen() {
               </View>
             ) : null}
           </View>
+
+          <Small style={{ marginTop: 8, fontSize: 11 }}>
+            {pack
+              ? `${packLabel(pack)} · ${piecesPerPack} parça · ${formatPrice(product.unitPrice)}/adet + KDV`
+              : `Tek parça · ${formatPrice(product.unitPrice)}/adet + KDV`}
+          </Small>
 
           <Body style={{ marginTop: 16 }}>{product.summary}</Body>
         </View>
@@ -259,60 +301,166 @@ export default function ProductScreen() {
           </View>
         </View>
 
-        {/* Size */}
+        {/* Purchase unit: packs first, single piece only as an exception */}
         <View style={{ paddingHorizontal: Layout.gutter, paddingTop: 26 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Label>Beden</Label>
-            {guide ? (
-              <TextButton
-                label="Beden tablosu"
-                underline={false}
-                onPress={() => setSizeGuideOpen(true)}
-              />
-            ) : null}
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-            {product.sizes.map((option) => {
-              const soldOut = product.soldOutSizes?.includes(option) ?? false;
-              const selected = size === option;
-              return (
-                <Pressable
-                  key={option}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    option.toLocaleLowerCase('tr').startsWith('tek ')
-                      ? option
-                      : `${option} beden`
-                  }
-                  disabled={soldOut}
+          {packs.length > 0 ? (
+            <>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Label>Seri</Label>
+                {guide ? (
+                  <TextButton
+                    label="Beden tablosu"
+                    underline={false}
+                    onPress={() => setSizeGuideOpen(true)}
+                  />
+                ) : null}
+              </View>
+
+              <View style={{ marginTop: 12, gap: 8 }}>
+                {packs.map((option, index) => {
+                  const selected = mode === 'pack' && index === packIndex;
+                  const available = packAvailable(product, option);
+                  return (
+                    <Pressable
+                      key={option.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected, disabled: !available }}
+                      accessibilityLabel={`${packLabel(option)}, ${formatPrice(
+                        packNetPrice(product, option)
+                      )}`}
+                      disabled={!available}
+                      onPress={() => {
+                        Haptics.selectionAsync().catch(() => {});
+                        setMode('pack');
+                        setPackIndex(index);
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        borderWidth: 1,
+                        borderColor: selected ? Colors.ink : Colors.lineStrong,
+                        backgroundColor: selected ? Colors.ink : 'transparent',
+                        paddingHorizontal: 14,
+                        paddingVertical: 12,
+                        opacity: !available ? 0.4 : pressed ? 0.7 : 1,
+                      })}>
+                      <View style={{ flex: 1 }}>
+                        <Label
+                          style={{
+                            color: selected ? Colors.paper : Colors.ink,
+                            letterSpacing: 1.2,
+                          }}>
+                          {packLabel(option)}
+                        </Label>
+                        <Small
+                          style={{
+                            marginTop: 5,
+                            fontSize: 10.5,
+                            color: selected ? 'rgba(247,245,241,0.72)' : Colors.inkMuted,
+                          }}>
+                          {packDistribution(option)}
+                        </Small>
+                        {!available ? (
+                          <Small style={{ marginTop: 4, fontSize: 10 }}>Beden tükendi</Small>
+                        ) : null}
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Money
+                          value={formatPrice(packNetPrice(product, option))}
+                          tone={selected ? 'paper' : 'ink'}
+                          size={13}
+                        />
+                        <Small
+                          style={{
+                            marginTop: 3,
+                            fontSize: 9.5,
+                            color: selected ? 'rgba(247,245,241,0.72)' : Colors.inkMuted,
+                          }}>
+                          {packPieces(option)} parça
+                        </Small>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Small style={{ marginTop: 10, fontSize: 10.5 }}>
+                Seri içeriği sabittir; adet olarak istediğiniz seri sayısını seçersiniz.
+              </Small>
+            </>
+          ) : null}
+
+          {product.allowSinglePiece ? (
+            <View style={{ marginTop: packs.length > 0 ? 22 : 0 }}>
+              <Label>Satış biçimi</Label>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                {packs.length > 0 ? (
+                  <ModeChip
+                    label="Seri"
+                    selected={mode === 'pack'}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      setMode('pack');
+                    }}
+                  />
+                ) : null}
+                <ModeChip
+                  label="Tek parça"
+                  selected={mode === 'piece'}
                   onPress={() => {
                     Haptics.selectionAsync().catch(() => {});
-                    setSize(option);
+                    setMode('piece');
                   }}
-                  style={{
-                    minWidth: 48,
-                    height: 40,
-                    paddingHorizontal: 12,
-                    borderWidth: 1,
-                    borderColor: selected ? Colors.ink : Colors.lineStrong,
-                    backgroundColor: selected ? Colors.ink : 'transparent',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: soldOut ? 0.35 : 1,
-                  }}>
-                  <Label
-                    style={{
-                      color: selected ? Colors.paper : Colors.ink,
-                      letterSpacing: 1.2,
-                      textDecorationLine: soldOut ? 'line-through' : 'none',
-                    }}>
-                    {option}
-                  </Label>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Small style={{ marginTop: 10, fontSize: 11 }}>
+                />
+              </View>
+            </View>
+          ) : null}
+
+          {mode === 'piece' ? (
+            <View style={{ marginTop: 18 }}>
+              <Label>Beden</Label>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                {product.sizes.map((option) => {
+                  const soldOut = product.soldOutSizes?.includes(option) ?? false;
+                  const selected = size === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      accessibilityRole="button"
+                      accessibilityLabel={sizeLabel(option)}
+                      disabled={soldOut}
+                      onPress={() => {
+                        Haptics.selectionAsync().catch(() => {});
+                        setSize(option);
+                      }}
+                      style={{
+                        minWidth: 48,
+                        height: 40,
+                        paddingHorizontal: 12,
+                        borderWidth: 1,
+                        borderColor: selected ? Colors.ink : Colors.lineStrong,
+                        backgroundColor: selected ? Colors.ink : 'transparent',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: soldOut ? 0.35 : 1,
+                      }}>
+                      <Label
+                        style={{
+                          color: selected ? Colors.paper : Colors.ink,
+                          letterSpacing: 1.2,
+                          textDecorationLine: soldOut ? 'line-through' : 'none',
+                        }}>
+                        {option}
+                      </Label>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
+          <Small style={{ marginTop: 12, fontSize: 11 }}>
             {product.fit}
           </Small>
         </View>
@@ -326,7 +474,7 @@ export default function ProductScreen() {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
-          <Label>Adet</Label>
+          <Label>{mode === 'pack' ? 'Seri adedi' : 'Adet'}</Label>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
             <Pressable
               hitSlop={10}
@@ -337,7 +485,7 @@ export default function ProductScreen() {
             <BodyStrong style={{ minWidth: 18, textAlign: 'center' }}>{quantity}</BodyStrong>
             <Pressable
               hitSlop={10}
-              onPress={() => setQuantity((value) => Math.min(10, value + 1))}
+              onPress={() => setQuantity((value) => Math.min(MAX_LINE_QTY, value + 1))}
               style={({ pressed }) => ({ opacity: pressed ? 0.4 : 1 })}>
               <Ionicons name="add" size={16} color={Colors.ink} />
             </Pressable>
@@ -362,8 +510,9 @@ export default function ProductScreen() {
           </Accordion>
           <Accordion title="Kargo & İade">
             <Body>
-              1–3 iş günü içinde kargoya verilir. 2.000 ₺ üzeri siparişlerde kargo
-              ücretsizdir. Teslimattan itibaren 30 gün içinde iade edebilirsiniz.
+              1–3 iş günü içinde kargoya verilir. 5.000 ₺ (KDV hariç) üzeri
+              siparişlerde kargo ücretsizdir. Teslimattan itibaren 30 gün içinde iade
+              edebilirsiniz.
             </Body>
           </Accordion>
         </View>
@@ -402,8 +551,29 @@ export default function ProductScreen() {
           borderTopWidth: 1,
           borderTopColor: Colors.line,
         }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            marginBottom: 8,
+            paddingHorizontal: 2,
+          }}>
+          <Small style={{ fontSize: 10.5 }}>
+            {pack ? `${packLabel(pack)} × ${quantity} · ${piecesPerPack * quantity} parça` : `${quantity} adet`}
+          </Small>
+          <Small style={{ fontSize: 10.5 }}>
+            + {formatPrice(lineVat)} KDV
+          </Small>
+        </View>
         <PrimaryButton
-          label={size ? `Sepete ekle · ${formatPrice(product.price * quantity)}` : 'Beden seçin'}
+          label={
+            canBuy
+              ? `Sepete ekle · ${formatPrice(lineNet)}`
+              : mode === 'pack'
+                ? 'Seri seçin'
+                : 'Beden seçin'
+          }
           onPress={handleAdd}
         />
       </View>
@@ -424,7 +594,7 @@ export default function ProductScreen() {
             gap: 12,
           }}>
           <Body tone='paper' style={{ fontSize: 12.5 }}>
-            Ürün sepete eklendi
+            {pack ? `${packLabel(pack)} sepete eklendi` : 'Ürün sepete eklendi'}
           </Body>
           <Pressable
             accessibilityRole='button'
@@ -451,6 +621,36 @@ export default function ProductScreen() {
         }}
       />
     </View>
+  );
+}
+
+function ModeChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        paddingHorizontal: 16,
+        height: 38,
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: selected ? Colors.ink : Colors.lineStrong,
+        backgroundColor: selected ? Colors.ink : 'transparent',
+        opacity: pressed ? 0.7 : 1,
+      })}>
+      <Label style={{ color: selected ? Colors.paper : Colors.ink, letterSpacing: 1.2 }}>
+        {label}
+      </Label>
+    </Pressable>
   );
 }
 

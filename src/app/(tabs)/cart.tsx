@@ -12,13 +12,9 @@ import { Rule } from '@/components/screen';
 import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typography';
 import { Colors, Layout } from '@/constants/theme';
 import { formatPrice } from '@/lib/format';
+import { FREE_SHIPPING_THRESHOLD, vatLabel } from '@/lib/pricing';
 import { buildMetadata } from '@/lib/seo';
-import {
-  FREE_SHIPPING_THRESHOLD,
-  useCartLines,
-  useCartSubtotal,
-  useShop,
-} from '@/store/shop';
+import { useCartLines, useCartTotals, useShop } from '@/store/shop';
 
 export const generateMetadata = () =>
   buildMetadata({
@@ -30,15 +26,13 @@ export const generateMetadata = () =>
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const lines = useCartLines();
-  const subtotal = useCartSubtotal();
+  const totals = useCartTotals();
   const setQty = useShop((state) => state.setQty);
   const removeLine = useShop((state) => state.removeLine);
 
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD || subtotal === 0 ? 0 : 49.9;
-  const total = subtotal + shipping;
-  const remaining = Math.max(FREE_SHIPPING_THRESHOLD - subtotal, 0);
-  const progress = Math.min(subtotal / FREE_SHIPPING_THRESHOLD, 1);
-  const itemCount = lines.reduce((count, line) => count + line.qty, 0);
+  const remaining = Math.max(FREE_SHIPPING_THRESHOLD - totals.netTotal, 0);
+  const progress = Math.min(totals.netTotal / FREE_SHIPPING_THRESHOLD, 1);
+  const itemCount = lines.reduce((count, line) => count + line.pieceCount, 0);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.paper }}>
@@ -47,7 +41,7 @@ export default function CartScreen() {
         contentContainerStyle={{ paddingBottom: 36 }}>
         <View style={{ paddingTop: insets.top + 20, paddingHorizontal: Layout.gutter }}>
           <Label style={{ color: Colors.inkMuted }}>
-            {itemCount > 0 ? `${itemCount} ürün` : 'Boş'}
+            {itemCount > 0 ? `${itemCount} parça` : 'Boş'}
           </Label>
           <Display level="xl" style={{ marginTop: 10 }}>
             Sepet
@@ -93,6 +87,9 @@ export default function CartScreen() {
                 {remaining > 0
                   ? `${formatPrice(remaining)} daha ekleyin, kargo ücretsiz olsun.`
                   : 'Siparişiniz ücretsiz kargo ile gönderilecek.'}
+              </Small>
+              <Small style={{ marginTop: 4, fontSize: 9.5 }}>
+                Eşik, KDV hariç tutara göre uygulanır.
               </Small>
               <View
                 style={{
@@ -145,7 +142,10 @@ export default function CartScreen() {
                               {line.product.name}
                             </BodyStrong>
                             <Small style={{ marginTop: 5, fontSize: 11 }}>
-                              {line.color} · {line.size}
+                              {line.color} · {line.title}
+                            </Small>
+                            <Small style={{ marginTop: 2, fontSize: 10 }}>
+                              {line.detail}
                             </Small>
                           </View>
                           <Pressable
@@ -161,11 +161,13 @@ export default function CartScreen() {
                           </Pressable>
                         </View>
 
-                        <Money
-                          value={formatPrice(line.product.price)}
-                          size={12.5}
-                          style={{ marginTop: 8 }}
-                        />
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, marginTop: 8 }}>
+                          <Money value={formatPrice(line.unitNet)} size={12.5} />
+                          <Label style={{ fontSize: 8, letterSpacing: 1.1 }}>+ KDV</Label>
+                        </View>
+                        <Small style={{ marginTop: 3, fontSize: 10 }}>
+                          {line.piecesPerUnit} parça / {line.pack ? 'seri' : 'adet'}
+                        </Small>
                       </View>
 
                       <View
@@ -179,7 +181,12 @@ export default function CartScreen() {
                           value={line.qty}
                           onChange={(qty) => setQty(line.id, qty)}
                         />
-                        <Money value={formatPrice(line.lineTotal)} size={13} />
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Money value={formatPrice(line.lineNet)} size={13} />
+                          <Small style={{ marginTop: 2, fontSize: 9.5 }}>
+                            {line.pieceCount} parça
+                          </Small>
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -193,10 +200,11 @@ export default function CartScreen() {
               <Label style={{ color: Colors.inkMuted }}>Sipariş özeti</Label>
 
               <View style={{ gap: 10, marginTop: 16 }}>
-                <SummaryRow label="Ara toplam" value={formatPrice(subtotal)} />
+                <SummaryRow label="Ara toplam (KDV hariç)" value={formatPrice(totals.netTotal)} />
+                <SummaryRow label={vatLabel()} value={formatPrice(totals.vatTotal)} />
                 <SummaryRow
                   label="Kargo"
-                  value={shipping === 0 ? 'Ücretsiz' : formatPrice(shipping)}
+                  value={totals.shippingCost === 0 ? 'Ücretsiz' : formatPrice(totals.shippingCost)}
                 />
               </View>
 
@@ -211,7 +219,7 @@ export default function CartScreen() {
                   borderTopColor: Colors.lineStrong,
                 }}>
                 <Label style={{ color: Colors.ink, letterSpacing: 1.6 }}>Toplam</Label>
-                <Money value={formatPrice(total)} size={18} />
+                <Money value={formatPrice(totals.total)} size={18} />
               </View>
 
               <PrimaryButton

@@ -62,6 +62,19 @@ assets/
 - Büyük harf dönüşümü CSS yerine `turkishUpper()` ile yapılır; böylece `i → İ` dönüşümü doğru çalışır.
 - Mobil öncelikli; web'de içerik ortalanmış bir çerçeve içinde gösterilir.
 
+## Ticaret kuralları
+
+Katalog toptan satışa göre kurulmuştur:
+
+- Ürünler **seri (lot)** olarak satılır. Seri içeriği şirket tarafından tanımlanır (örn. `2×S 2×M 1×L`) ve müşteri dağılımı değiştiremez.
+- Seri fiyatı = birim fiyat × serideki parça sayısı. Fiyatın tek kaynağı katalogdur; istemciden gelen tutar yok sayılır.
+- Katalogdaki fiyatlar **KDV hariçtir**. Tüm ürünlerde tek oran uygulanır: **%10**.
+- Kargo, KDV hariç ara toplam **5.000 ₺** ve üzerindeyse ücretsizdir (standart 49,90 ₺, express 89,90 ₺).
+- Minimum sipariş yoktur. Tek parça satışı yalnızca üründe `allowSinglePiece` açıksa mümkündür.
+- Bir serinin bedenlerinden biri tükendiyse seri satışa kapanır; stok ve fatura Nebim'de kalır.
+
+Hesaplar tek yerde toplanır: `src/lib/pricing.ts` (istemci ve sunucu aynı formülü kullanır), seri yardımcıları `src/data/catalog.ts` içindedir.
+
 ## Veri ve demo kapsamı
 
 Katalog `src/data/catalog.ts` içinde yerel olarak tanımlıdır; gerçek bir servise geçmek için yalnızca bu katmanı değiştirmek yeterlidir. Ödeme adımı demodedir: kart bilgisi saklanmaz, sipariş numarası üretilir ve `AsyncStorage` üzerinde tutulur.

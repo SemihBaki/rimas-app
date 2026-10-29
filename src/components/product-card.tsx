@@ -10,7 +10,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { Colors, Spacing } from '@/constants/theme';
-import type { Product } from '@/data/catalog';
+import {
+  entryPrice,
+  packLabel,
+  packListPrice,
+  primaryPack,
+  type Product,
+} from '@/data/catalog';
 import { formatPrice } from '@/lib/format';
 import { useShop } from '@/store/shop';
 
@@ -32,6 +38,11 @@ export function ProductCard({
   const favorite = useShop((state) => state.favorites.includes(product.id));
   const toggleFavorite = useShop((state) => state.toggleFavorite);
   const scale = useSharedValue(1);
+
+  const pack = primaryPack(product);
+  const price = entryPrice(product);
+  const listPrice = pack ? packListPrice(product, pack) : product.listUnitPrice ?? null;
+  const unitLabel = pack ? packLabel(pack) : 'Tek parça';
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -80,21 +91,22 @@ export function ProductCard({
             <BodyStrong numberOfLines={1} style={{ fontSize: 12.5, lineHeight: 17 }}>
               {product.name}
             </BodyStrong>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Money value={formatPrice(product.price)} size={12.5} />
-              {product.compareAt ? (
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+              <Money value={formatPrice(price)} size={12.5} />
+              <Label style={{ fontSize: 8, letterSpacing: 1.2 }}>+ KDV</Label>
+              {listPrice ? (
                 <Small
                   style={{
                     fontSize: 11.5,
                     textDecorationLine: 'line-through',
                     color: Colors.inkMuted,
                   }}>
-                  {formatPrice(product.compareAt)}
+                  {formatPrice(listPrice)}
                 </Small>
               ) : null}
             </View>
             <Small style={{ fontSize: 10.5, color: Colors.inkMuted, marginTop: 1 }}>
-              {product.colors.length} renk
+              {unitLabel} · {product.colors.length} renk
             </Small>
           </View>
         </Pressable>
