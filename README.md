@@ -14,6 +14,17 @@ npx expo start
 - Web: `w` tuşu veya `http://localhost:8081`
 - iOS / Android: Expo Go ile QR kodu okutun
 
+### Telefondan (aynı Wi-Fi)
+
+Bilgisayarın Wi-Fi IP adresini bulun (`ipconfig` → "Kablosuz LAN bağdaştırıcısı Wi-Fi" → IPv4 Adresi) ve paket adresini bu IP'ye sabitleyin:
+
+```powershell
+$env:REACT_NATIVE_PACKAGER_HOSTNAME="192.168.1.153"
+npx expo start --lan
+```
+
+Telefonda Safari'den `http://192.168.1.153:8081` adresini açın. IP değişirse komutu yeni IP ile tekrarlayın. Windows güvenlik duvarında Node.js için özel ağ izni gerekir.
+
 Faydalı komutlar:
 
 ```bash
