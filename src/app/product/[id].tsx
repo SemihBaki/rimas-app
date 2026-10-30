@@ -28,14 +28,13 @@ import {
   packAvailable,
   packDistribution,
   packLabel,
-  packListPrice,
   packNetPrice,
   packPieces,
   relatedProducts,
   sizeGuideFor,
 } from '@/data/catalog';
 import { formatPrice, sizeLabel } from '@/lib/format';
-import { VAT_RATE, roundMoney } from '@/lib/pricing';
+import { roundMoney } from '@/lib/pricing';
 import { buildMetadata, firstParam } from '@/lib/seo';
 import { MAX_LINE_QTY, useShop } from '@/store/shop';
 
@@ -105,16 +104,14 @@ export default function ProductScreen() {
   const guide = sizeGuideFor(product);
 
   const packs = product.packs;
-  const pack = mode === 'pack' && packs.length > 0 ? packs[Math.min(packIndex, packs.length - 1)] : null;
+  const activePack = packs.length > 0 ? packs[Math.min(packIndex, packs.length - 1)] : null;
+  const pack = mode === 'pack' ? activePack : null;
   const piecesPerPack = pack ? packPieces(pack) : 1;
-  const vatRate = product.vatRate ?? VAT_RATE;
   /** Net price of one cart unit: one pack, or one piece. */
   const unitNet = pack ? packNetPrice(product, pack) : product.unitPrice;
   const lineNet = roundMoney(unitNet * quantity);
-  const lineVat = roundMoney(lineNet * vatRate);
-  const listPrice = pack
-    ? packListPrice(product, pack)
-    : product.listUnitPrice ?? null;
+  /** Header always advertises the per-piece price, never the pack total. */
+  const listPrice = product.listUnitPrice ?? null;
   const canBuy = mode === 'pack' ? Boolean(pack) : Boolean(size);
 
   const handleAdd = () => {
@@ -228,8 +225,16 @@ export default function ProductScreen() {
             {product.name}
           </Display>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
-            <Money value={formatPrice(unitNet)} size={15} />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'baseline',
+              gap: 9,
+              marginTop: 12,
+              flexWrap: 'wrap',
+            }}>
+            <Money value={formatPrice(product.unitPrice)} size={15} />
+            <Small style={{ fontSize: 11 }}>/ adet</Small>
             <Label style={{ fontSize: 9, letterSpacing: 1.6 }}>+ KDV</Label>
             {listPrice ? (
               <Small
@@ -250,11 +255,16 @@ export default function ProductScreen() {
             ) : null}
           </View>
 
-          <Small style={{ marginTop: 8, fontSize: 11 }}>
-            {pack
-              ? `${packLabel(pack)} · ${piecesPerPack} parça · ${formatPrice(product.unitPrice)}/adet + KDV`
-              : `Tek parça · ${formatPrice(product.unitPrice)}/adet + KDV`}
-          </Small>
+          {activePack ? (
+            <Small style={{ marginTop: 8, fontSize: 11 }}>
+              Seri fiyatı · {packLabel(activePack)} ·{' '}
+              {formatPrice(packNetPrice(product, activePack))} + KDV
+            </Small>
+          ) : (
+            <Small style={{ marginTop: 8, fontSize: 11 }}>
+              Tek parça olarak satılır · Fiyatlar KDV hariçtir
+            </Small>
+          )}
 
           <Body style={{ marginTop: 16 }}>{product.summary}</Body>
         </View>
@@ -563,13 +573,13 @@ export default function ProductScreen() {
             {pack ? `${packLabel(pack)} × ${quantity} · ${piecesPerPack * quantity} parça` : `${quantity} adet`}
           </Small>
           <Small style={{ fontSize: 10.5 }}>
-            + {formatPrice(lineVat)} KDV
+            {pack ? 'Seri fiyatı' : 'Tekli fiyat'} · {formatPrice(lineNet)} + KDV
           </Small>
         </View>
         <PrimaryButton
           label={
             canBuy
-              ? `Sepete ekle · ${formatPrice(lineNet)}`
+              ? 'Sepete ekle'
               : mode === 'pack'
                 ? 'Seri seçin'
                 : 'Beden seçin'

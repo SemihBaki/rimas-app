@@ -68,6 +68,7 @@ Katalog toptan satışa göre kurulmuştur:
 
 - Ürünler **seri (lot)** olarak satılır. Seri içeriği şirket tarafından tanımlanır (örn. `2×S 2×M 1×L`) ve müşteri dağılımı değiştiremez.
 - Seri fiyatı = birim fiyat × serideki parça sayısı. Fiyatın tek kaynağı katalogdur; istemciden gelen tutar yok sayılır.
+- Ürün sayfası ve kartlarda ana fiyat **tekli (adet) fiyatıdır**; seri toplamı seri seçicide, sepete ekleme çubuğunda ve sepette gösterilir. Müşteriden parça başına fiyat hesaplaması beklenmez.
 - Katalogdaki fiyatlar **KDV hariçtir**. Tüm ürünlerde tek oran uygulanır: **%10**.
 - Kargo, KDV hariç ara toplam **5.000 ₺** ve üzerindeyse ücretsizdir (standart 49,90 ₺, express 89,90 ₺).
 - Minimum sipariş yoktur. Tek parça satışı yalnızca üründe `allowSinglePiece` açıksa mümkündür.

@@ -11,9 +11,8 @@ import Animated, {
 
 import { Colors, Spacing } from '@/constants/theme';
 import {
-  entryPrice,
   packLabel,
-  packListPrice,
+  packNetPrice,
   primaryPack,
   type Product,
 } from '@/data/catalog';
@@ -40,9 +39,10 @@ export function ProductCard({
   const scale = useSharedValue(1);
 
   const pack = primaryPack(product);
-  const price = entryPrice(product);
-  const listPrice = pack ? packListPrice(product, pack) : product.listUnitPrice ?? null;
-  const unitLabel = pack ? packLabel(pack) : 'Tek parça';
+  /** Cards lead with the per-piece price so nobody has to divide the pack total. */
+  const price = product.unitPrice;
+  const listPrice = product.listUnitPrice ?? null;
+  const packPrice = pack ? packNetPrice(product, pack) : null;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -91,8 +91,9 @@ export function ProductCard({
             <BodyStrong numberOfLines={1} style={{ fontSize: 12.5, lineHeight: 17 }}>
               {product.name}
             </BodyStrong>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5, flexWrap: 'wrap' }}>
               <Money value={formatPrice(price)} size={12.5} />
+              <Small style={{ fontSize: 10, color: Colors.inkMuted }}>/ adet</Small>
               <Label style={{ fontSize: 8, letterSpacing: 1.2 }}>+ KDV</Label>
               {listPrice ? (
                 <Small
@@ -106,7 +107,9 @@ export function ProductCard({
               ) : null}
             </View>
             <Small style={{ fontSize: 10.5, color: Colors.inkMuted, marginTop: 1 }}>
-              {unitLabel} · {product.colors.length} renk
+              {pack && packPrice !== null
+                ? `${packLabel(pack)} · ${formatPrice(packPrice)} + KDV`
+                : `Tek parça · ${product.colors.length} renk`}
             </Small>
           </View>
         </Pressable>
