@@ -104,13 +104,18 @@ export const CATEGORIES: Category[] = [
   },
 ];
 
+/**
+ * Demo catalogue. Unit prices are placeholder wholesale numbers (VAT
+ * excluded); the real price list from the company replaces them here, and
+ * pack prices are derived automatically.
+ */
 export const PRODUCTS: Product[] = [
   {
     id: 'trench',
     name: 'Yün Karışımlı Trençkot',
     category: 'dis-giyim',
-    unitPrice: 4299.9,
-    listUnitPrice: 5299.9,
+    unitPrice: 1450,
+    listUnitPrice: 1890,
     badge: 'Yeni',
     colors: [
       { name: 'Kum', hex: '#C9B69F' },
@@ -152,7 +157,8 @@ export const PRODUCTS: Product[] = [
     id: 'shirt',
     name: 'Oversize Poplin Gömlek',
     category: 'gomlek',
-    unitPrice: 1299.9,
+    unitPrice: 450,
+    listUnitPrice: 590,
     badge: 'Yeni',
     colors: [
       { name: 'Beyaz', hex: '#F7F6F3' },
@@ -202,7 +208,8 @@ export const PRODUCTS: Product[] = [
     id: 'dress',
     name: 'Saten Askılı Elbise',
     category: 'elbise',
-    unitPrice: 2499.9,
+    unitPrice: 800,
+    listUnitPrice: 1050,
     badge: 'Çok Satan',
     colors: [
       { name: 'Siyah', hex: '#141414' },
@@ -243,7 +250,8 @@ export const PRODUCTS: Product[] = [
     id: 'knit',
     name: 'Örgü Triko Kazak',
     category: 'triko',
-    unitPrice: 1899.9,
+    unitPrice: 550,
+    listUnitPrice: 720,
     colors: [
       { name: 'Kum', hex: '#CDBBA6' },
       { name: 'Krem', hex: '#EFE7DA' },
@@ -283,8 +291,8 @@ export const PRODUCTS: Product[] = [
     id: 'denim',
     name: 'Yüksek Bel Geniş Paça Jean',
     category: 'denim',
-    unitPrice: 1699.9,
-    listUnitPrice: 2099.9,
+    unitPrice: 500,
+    listUnitPrice: 680,
     colors: [
       { name: 'Açık Mavi', hex: '#A9BDD1' },
       { name: 'Indigo', hex: '#3D4E68' },
@@ -325,7 +333,8 @@ export const PRODUCTS: Product[] = [
     id: 'tote',
     name: 'Yumuşak Deri Çanta',
     category: 'aksesuar',
-    unitPrice: 3499.9,
+    unitPrice: 1250,
+    listUnitPrice: 1650,
     badge: 'Yeni',
     colors: [
       { name: 'Tabac', hex: '#8B5E3C' },
@@ -355,7 +364,8 @@ export const PRODUCTS: Product[] = [
     id: 'necklace',
     name: 'Altın Kaplama Zincir Kolye',
     category: 'aksesuar',
-    unitPrice: 899.9,
+    unitPrice: 300,
+    listUnitPrice: 420,
     colors: [{ name: 'Altın', hex: '#C8A25C' }],
     sizes: ['Tek Beden'],
     packs: [],
@@ -376,7 +386,8 @@ export const PRODUCTS: Product[] = [
     id: 'blazer',
     name: 'Kruvaze Yün Blazer',
     category: 'dis-giyim',
-    unitPrice: 3799.9,
+    unitPrice: 1400,
+    listUnitPrice: 1850,
     colors: [
       { name: 'Antrasit', hex: '#3A3A3C' },
       { name: 'Kum', hex: '#C9B69F' },
