@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -360,6 +361,24 @@ export default function CheckoutScreen() {
                 çekilmez.
               </Small>
             </View>
+
+            <Small style={{ marginTop: 14, fontSize: 10.5, lineHeight: 16 }}>
+              Siparişi tamamlayarak{' '}
+              <Text
+                accessibilityRole="link"
+                onPress={() => router.push('/legal/mesafeli-satis')}
+                style={{ textDecorationLine: 'underline' }}>
+                Mesafeli Satış Sözleşmesi
+              </Text>
+              ’ni ve{' '}
+              <Text
+                accessibilityRole="link"
+                onPress={() => router.push('/legal/cayma')}
+                style={{ textDecorationLine: 'underline' }}>
+                Cayma Hakkı ve İade
+              </Text>{' '}
+              koşullarını kabul etmiş olursunuz.
+            </Small>
           </Section>
 
           {/* Summary */}

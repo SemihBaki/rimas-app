@@ -279,11 +279,14 @@ export default function AccountScreen() {
             <Pressable onPress={() => router.push('/about')}>
               <Small style={{ fontSize: 10 }}>Hakkımızda</Small>
             </Pressable>
-            <Pressable onPress={() => toast.show('Kargo bilgisi yakında')}>
+            <Pressable onPress={() => router.push('/legal/teslimat')}>
               <Small style={{ fontSize: 10 }}>Kargo</Small>
             </Pressable>
-            <Pressable onPress={() => toast.show('İade bilgisi yakında')}>
+            <Pressable onPress={() => router.push('/legal/cayma')}>
               <Small style={{ fontSize: 10 }}>İade</Small>
+            </Pressable>
+            <Pressable onPress={() => router.push('/legal')}>
+              <Small style={{ fontSize: 10 }}>Yasal</Small>
             </Pressable>
           </View>
           <Body style={{ marginTop: 16, fontSize: 10.5, color: Colors.inkMuted }}>

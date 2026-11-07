@@ -110,6 +110,12 @@ Değişkenler `.env.example` içinde listelenmiştir. Nebim'den beklenenler: uç
 - `src/lib/structured-data.ts`: ürün ve marka için schema.org JSON-LD. Web'de `src/components/json-ld.tsx` üzerinden eklenir.
 - Özel ekranlar (`sepet`, `ödeme`, `siparişler`, `hesap`, `arama`) `noIndex` olarak işaretlidir.
 
+## Yasal metinler
+
+Metinlerin tek kaynağı `src/data/legal.ts` dosyasıdır: KVKK aydınlatma metni, gizlilik ve çerez politikası, mesafeli satış sözleşmesi, cayma hakkı ve teslimat koşulları. Sayfalar `/legal` altında yayınlanır ve sitemap'e otomatik eklenir.
+
+Şirket unvanı, adres, vergi dairesi, vergi numarası, MERSİS, telefon ve KEP alanları `COMPANY` nesnesinde **köşeli parantezli yer tutucu** olarak durur. Yayına çıkmadan önce bu alanlar doldurulmalı; metinler hukuk danışmanına kontrol ettirilmelidir. Yer tutucular kaldığı sürece sayfalarda kısa bir bilgilendirme notu görünür.
+
 ## Veri ve demo kapsamı
 
 Katalog `src/data/catalog.ts` içinde yerel olarak tanımlıdır; gerçek bir servise geçmek için yalnızca bu katmanı değiştirmek yeterlidir. Hesaplar, oturumlar, siparişler ve favoriler sunucuda SQLite (`.data/rimas.db`) içinde tutulur. Ödeme adımı demodedir: kart bilgisi saklanmaz, sipariş numarası üretilip sunucuya yazılır.

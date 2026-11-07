@@ -1,4 +1,5 @@
 import { CATEGORIES, PRODUCTS } from '@/data/catalog';
+import { LEGAL_DOCUMENTS } from '@/data/legal';
 import { siteOrigin } from '@/lib/seo';
 
 /** XML sitemap with every indexable route. Product and collection pages are static. */
@@ -9,6 +10,8 @@ export function GET(request: Request) {
     '/',
     '/collections',
     '/about',
+    '/legal',
+    ...LEGAL_DOCUMENTS.map((document) => `/legal/${document.slug}`),
     ...CATEGORIES.map((category) => `/collection/${category.id}`),
     ...PRODUCTS.map((product) => `/product/${product.id}`),
   ];

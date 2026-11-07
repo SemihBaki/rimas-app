@@ -246,6 +246,18 @@ export default function AboutScreen() {
             <Label style={{ letterSpacing: 1.8 }}>Koleksiyonu keşfet</Label>
           </Pressable>
           <BrandMark height={40} style={{ marginTop: 30 }} />
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/legal')}
+            style={({ pressed }) => ({
+              marginTop: 14,
+              borderBottomWidth: 1,
+              borderBottomColor: Colors.lineStrong,
+              paddingBottom: 2,
+              opacity: pressed ? 0.6 : 1,
+            })}>
+            <Small style={{ fontSize: 10 }}>Yasal metinler</Small>
+          </Pressable>
           <Small style={{ marginTop: 16, fontSize: 10 }}>© 2026 RİMAS</Small>
         </View>
       </ScrollView>
