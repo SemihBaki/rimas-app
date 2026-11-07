@@ -1,8 +1,6 @@
 # RİMAS
 
-RİMAS, sakin ve editoryal bir dille tasarlanmış mobil giyim mağazası deneyimidir. Az sayıda, uzun ömürlü parça fikri üzerine kurulu; ürün keşfi, koleksiyonlar, favoriler, sepet ve sipariş akışını uçtan uca çalışır halde sunar.
 
-Uygulama React Native + Expo (SDK 58) ile geliştirildi ve iOS, Android ve web üzerinde aynı kod tabanından çalışır.
 
 ## Çalıştırma
 
