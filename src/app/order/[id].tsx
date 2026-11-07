@@ -300,6 +300,7 @@ export default function OrderScreen() {
                         {product ? (
                           <Image
                             source={product.images[0]}
+                            accessibilityLabel={product.name}
                             style={{ width: 46, height: 58, backgroundColor: Colors.paperDeep }}
                             contentFit="cover"
                             transition={150}

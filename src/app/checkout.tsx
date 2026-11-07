@@ -371,6 +371,7 @@ export default function CheckoutScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <Image
                     source={line.product.images[0]}
+                    accessibilityLabel={line.product.name}
                     style={{ width: 44, height: 56, backgroundColor: Colors.paperDeep }}
                     contentFit="cover"
                     transition={150}

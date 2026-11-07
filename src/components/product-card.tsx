@@ -68,6 +68,7 @@ export function ProductCard({
           <View style={{ backgroundColor: Colors.paperDeep, overflow: 'hidden' }}>
             <Image
               source={product.images[0]}
+              accessibilityLabel={product.name}
               style={{ width: '100%', aspectRatio: 0.75 }}
               contentFit="cover"
               transition={260}

@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import type { GenerateMetadataFunction } from 'expo-router/server';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,12 +12,16 @@ import { Colors, Layout } from '@/constants/theme';
 import { CATEGORIES, EDITORIALS } from '@/data/catalog';
 import { buildMetadata } from '@/lib/seo';
 
-export const generateMetadata = () =>
-  buildMetadata({
-    title: 'Koleksiyon — RİMAS',
-    description:
-      'Sezonun tüm parçaları: dış giyim, elbise, gömlek, triko, denim ve aksesuar. Kumaş hikâyeleriyle birlikte, az sayıda üretildi.',
-  });
+export const generateMetadata: GenerateMetadataFunction = (request) =>
+  buildMetadata(
+    {
+      title: 'Koleksiyon — RİMAS',
+      description:
+        'Sezonun tüm parçaları: dış giyim, elbise, gömlek, triko, denim ve aksesuar. Kumaş hikâyeleriyle birlikte, az sayıda üretildi.',
+      path: '/collections',
+    },
+    request
+  );
 
 export default function CollectionsScreen() {
   const insets = useSafeAreaInsets();
@@ -62,6 +67,7 @@ export default function CollectionsScreen() {
           <View style={{ height: 430, backgroundColor: Colors.ink }}>
             <Image
               source={lookbook.image}
+              accessibilityLabel={lookbook.title}
               style={{ flex: 1 }}
               contentFit="cover"
               transition={400}
@@ -127,6 +133,7 @@ export default function CollectionsScreen() {
                 <View style={{ backgroundColor: Colors.paperDeep }}>
                   <Image
                     source={category.image}
+                    accessibilityLabel={`${category.name} koleksiyonu`}
                     style={{ width: '100%', height: index < 2 ? 260 : 210 }}
                     contentFit="cover"
                     transition={260}
@@ -170,6 +177,7 @@ export default function CollectionsScreen() {
           })}>
           <Image
             source={story.image}
+            accessibilityLabel={story.title}
             style={{ width: '100%', height: 300, backgroundColor: Colors.paperDeep }}
             contentFit="cover"
             transition={300}

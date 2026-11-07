@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Accordion } from '@/components/accordion';
 import { PrimaryButton, TextButton } from '@/components/button';
+import { JsonLd } from '@/components/json-ld';
 import { ProductCard } from '@/components/product-card';
 import { Rule } from '@/components/screen';
 import { SectionHeading } from '@/components/section-heading';
@@ -36,24 +37,32 @@ import {
 import { formatPrice, sizeLabel } from '@/lib/format';
 import { roundMoney } from '@/lib/pricing';
 import { buildMetadata, firstParam } from '@/lib/seo';
+import { productJsonLd } from '@/lib/structured-data';
 import { MAX_LINE_QTY, useShop } from '@/store/shop';
 import { useSoldOutSizes } from '@/store/stock';
 
-export const generateMetadata: GenerateMetadataFunction = (_request, params) => {
+export const generateMetadata: GenerateMetadataFunction = (request, params) => {
   const product = getProduct(firstParam(params.id));
 
   if (!product) {
-    return buildMetadata({
-      title: 'Ürün bulunamadı — RİMAS',
-      description: 'Aradığınız parça koleksiyondan kaldırılmış olabilir.',
-      noIndex: true,
-    });
+    return buildMetadata(
+      {
+        title: 'Ürün bulunamadı — RİMAS',
+        description: 'Aradığınız parça koleksiyondan kaldırılmış olabilir.',
+        noIndex: true,
+      },
+      request
+    );
   }
 
-  return buildMetadata({
-    title: `${product.name} — RİMAS`,
-    description: product.summary,
-  });
+  return buildMetadata(
+    {
+      title: `${product.name} — RİMAS`,
+      description: product.summary,
+      path: `/product/${product.id}`,
+    },
+    request
+  );
 };
 
 export default function ProductScreen() {
@@ -70,6 +79,7 @@ export default function ProductScreen() {
   );
   /** Live warehouse availability, overlaid on the catalogue's demo stock. */
   const soldOut = useSoldOutSizes(product?.id ?? id, product?.soldOutSizes);
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
 
   const [colorIndex, setColorIndex] = useState(0);
   const [mode, setMode] = useState<'pack' | 'piece'>(
@@ -148,6 +158,7 @@ export default function ProductScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.paper }}>
+      <JsonLd json={productJsonLd(product, origin, soldOut)} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}>
@@ -165,6 +176,7 @@ export default function ProductScreen() {
               <Image
                 key={index}
                 source={image}
+                accessibilityLabel={`${product.name} — görsel ${index + 1}`}
                 style={{ width: pageWidth, height: pageWidth * 1.28 }}
                 contentFit="cover"
                 transition={250}
@@ -347,7 +359,9 @@ export default function ProductScreen() {
                     <Pressable
                       key={option.id}
                       accessibilityRole="radio"
-                      accessibilityState={{ selected, disabled: !available }}
+                      accessibilityState={{ checked: selected, disabled: !available }}
+                      aria-checked={selected}
+                      aria-disabled={!available}
                       accessibilityLabel={`${packLabel(option)}, ${formatPrice(
                         packNetPrice(product, option)
                       )}`}

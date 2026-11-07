@@ -121,6 +121,7 @@ export default function CartScreen() {
                       style={{ backgroundColor: Colors.paperDeep }}>
                       <Image
                         source={line.product.images[0]}
+                        accessibilityLabel={line.product.name}
                         style={{ width: 92, height: 120 }}
                         contentFit="cover"
                         transition={200}

@@ -10,7 +10,7 @@ export const Colors = {
   surface: '#FFFFFF',
   ink: '#111110',
   inkSoft: '#5A5854',
-  inkMuted: '#918D86',
+  inkMuted: '#6F6A62',
   line: '#E4E0D8',
   lineStrong: '#CFC9BF',
   sand: '#C6B39C',

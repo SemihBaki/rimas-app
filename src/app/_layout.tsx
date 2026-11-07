@@ -11,9 +11,11 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
+import { JsonLd } from '@/components/json-ld';
 import { ToastProvider } from '@/components/toast';
 import { Colors, Layout, Shadow } from '@/constants/theme';
 import { isStandaloneWebApp } from '@/lib/standalone';
+import { organizationJsonLd } from '@/lib/structured-data';
 import { useAuth } from '@/store/auth';
 import { useShop } from '@/store/shop';
 import { useStock } from '@/store/stock';
@@ -119,14 +121,17 @@ export default function RootLayout() {
     return null;
   }
 
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StandaloneStatusBarInset>
           <ThemeProvider value={navigationTheme}>
             <StatusBar style="dark" />
+            <JsonLd json={organizationJsonLd(origin)} />
             <View style={styles.desktopBackdrop}>
-              <View style={styles.frame}>
+              <View style={styles.frame} role="main">
                 <ToastProvider>
                   <Stack
                     screenOptions={{

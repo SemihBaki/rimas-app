@@ -102,6 +102,14 @@ Uçlar:
 
 Değişkenler `.env.example` içinde listelenmiştir. Nebim'den beklenenler: uç nokta ve kimlik doğrulama yöntemi, IP izin listesi, hız limitleri ve lot dağılımının nasıl döndüğü. Sipariş oluşturulurken stok yeniden doğrulanır; tükenmiş bir seri veya beden siparişe dönüşemez.
 
+## PWA ve arama motorları
+
+- `public/manifest.json` + `public/icon-*.png`: iPhone “Ana Ekrana Ekle” ve Android kurulumu. Maskable ikon ayrı dosyadır (`icon-maskable-512.png`).
+- `src/app/robots.txt+api.ts` ve `src/app/sitemap.xml+api.ts`: tarama kuralları ve tüm ürün/koleksiyon adresleri. Site adresi `EXPO_PUBLIC_SITE_URL` ile sabitlenir; boşsa isteğin origin'i kullanılır.
+- `src/lib/seo.ts`: canonical, Open Graph ve Twitter kartları. Paylaşım görseli `public/og-image.png` (1200×630).
+- `src/lib/structured-data.ts`: ürün ve marka için schema.org JSON-LD. Web'de `src/components/json-ld.tsx` üzerinden eklenir.
+- Özel ekranlar (`sepet`, `ödeme`, `siparişler`, `hesap`, `arama`) `noIndex` olarak işaretlidir.
+
 ## Veri ve demo kapsamı
 
 Katalog `src/data/catalog.ts` içinde yerel olarak tanımlıdır; gerçek bir servise geçmek için yalnızca bu katmanı değiştirmek yeterlidir. Hesaplar, oturumlar, siparişler ve favoriler sunucuda SQLite (`.data/rimas.db`) içinde tutulur. Ödeme adımı demodedir: kart bilgisi saklanmaz, sipariş numarası üretilip sunucuya yazılır.

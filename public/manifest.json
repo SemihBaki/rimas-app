@@ -1,14 +1,17 @@
 {
   "name": "RİMAS",
   "short_name": "RİMAS",
+  "id": "/",
   "description": "RİMAS — seçkin parçalardan oluşan gardırop.",
   "lang": "tr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#F7F5F1",
   "theme_color": "#F7F5F1",
+  "categories": ["shopping", "lifestyle"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -23,10 +26,22 @@
       "purpose": "any"
     },
     {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Koleksiyon",
+      "short_name": "Koleksiyon",
+      "url": "/collections"
+    },
+    {
+      "name": "Sepet",
+      "short_name": "Sepet",
+      "url": "/cart"
     }
   ]
 }

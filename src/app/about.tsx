@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import type { GenerateMetadataFunction } from 'expo-router/server';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,12 +15,16 @@ import { Colors, Layout } from '@/constants/theme';
 import { EDITORIALS } from '@/data/catalog';
 import { buildMetadata } from '@/lib/seo';
 
-export const generateMetadata = () =>
-  buildMetadata({
-    title: 'RİMAS Hakkında — Kumaşın Hikâyesi',
-    description:
-      'RİMAS, hızlı tüketimin karşısında duran küçük bir terzilik girişimi. İstanbul’da, sınırlı sayıda ve uzun ömürlü parçalar.',
-  });
+export const generateMetadata: GenerateMetadataFunction = (request) =>
+  buildMetadata(
+    {
+      title: 'RİMAS Hakkında — Kumaşın Hikâyesi',
+      description:
+        'RİMAS, hızlı tüketimin karşısında duran küçük bir terzilik girişimi. İstanbul’da, sınırlı sayıda ve uzun ömürlü parçalar.',
+      path: '/about',
+    },
+    request
+  );
 
 const VALUES = [
   {
@@ -55,6 +60,7 @@ export default function AboutScreen() {
         <View style={{ height: 380, backgroundColor: Colors.ink }}>
           <Image
             source={story.image}
+            accessibilityLabel={story.title}
             style={{ flex: 1 }}
             contentFit="cover"
             transition={350}
@@ -115,6 +121,7 @@ export default function AboutScreen() {
         {/* Image */}
         <Image
           source={EDITORIALS[0].image}
+          accessibilityLabel={EDITORIALS[0].title}
           style={{
             width: '100%',
             height: 320,

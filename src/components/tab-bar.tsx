@@ -41,7 +41,7 @@ export function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
               key={route.key}
               accessibilityRole="button"
               accessibilityState={{ selected: focused }}
-              accessibilityLabel={meta.label}
+              accessibilityLabel={meta.label.toLocaleUpperCase('tr-TR')}
               onPress={() => {
                 Haptics.selectionAsync().catch(() => {});
                 const event = emitter.emit({

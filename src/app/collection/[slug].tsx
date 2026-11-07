@@ -18,19 +18,26 @@ export const generateMetadata: GenerateMetadataFunction = (_request, params) => 
   const category = isAll ? undefined : CATEGORIES.find((item) => item.id === slug);
 
   if (!isAll && !category) {
-    return buildMetadata({
-      title: 'Koleksiyon bulunamadı — RİMAS',
-      description: 'Aradığınız kategori kaldırılmış olabilir.',
-      noIndex: true,
-    });
+    return buildMetadata(
+      {
+        title: 'Koleksiyon bulunamadı — RİMAS',
+        description: 'Aradığınız kategori kaldırılmış olabilir.',
+        noIndex: true,
+      },
+      _request
+    );
   }
 
-  return buildMetadata({
-    title: `${isAll ? 'Tüm Parçalar' : (category?.name ?? '')} — RİMAS`,
-    description: isAll
-      ? 'Sonbahar / kış sezonunun tüm parçaları: trençkot, blazer, elbise, gömlek, triko, denim ve aksesuar.'
-      : `${category?.name}: ${category?.caption}. Az sayıda üretilen, uzun ömürlü parçalar.`,
-  });
+  return buildMetadata(
+    {
+      title: `${isAll ? 'Tüm Parçalar' : (category?.name ?? '')} — RİMAS`,
+      description: isAll
+        ? 'Sonbahar / kış sezonunun tüm parçaları: trençkot, blazer, elbise, gömlek, triko, denim ve aksesuar.'
+        : `${category?.name}: ${category?.caption}. Az sayıda üretilen, uzun ömürlü parçalar.`,
+      path: `/collection/${slug ?? 'tumu'}`,
+    },
+    _request
+  );
 };
 
 export default function CollectionScreen() {

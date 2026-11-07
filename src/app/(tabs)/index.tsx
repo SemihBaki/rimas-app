@@ -3,6 +3,7 @@ import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import type { GenerateMetadataFunction } from 'expo-router/server';
 import { useState } from 'react';
 import {
   Platform,
@@ -36,12 +37,16 @@ import { Colors, Layout } from '@/constants/theme';
 import { CATEGORIES, EDITORIALS, HERO_IMAGE, PRODUCTS } from '@/data/catalog';
 import { buildMetadata } from '@/lib/seo';
 
-export const generateMetadata = () =>
-  buildMetadata({
-    title: 'RİMAS — Sessiz Zarafet',
-    description:
-      'Sonbahar / Kış 26 koleksiyonu: trençkot, blazer, triko, denim ve aksesuar. Az sayıda üretilen, uzun ömürlü parçalar.',
-  });
+export const generateMetadata: GenerateMetadataFunction = (request) =>
+  buildMetadata(
+    {
+      title: 'RİMAS — Sessiz Zarafet',
+      description:
+        'Sonbahar / Kış 26 koleksiyonu: trençkot, blazer, triko, denim ve aksesuar. Az sayıda üretilen, uzun ömürlü parçalar.',
+      path: '/',
+    },
+    request
+  );
 
 const SERVICES = [
   { icon: 'cube-outline', title: 'Ücretsiz Kargo', copy: '5.000 ₺ üzeri' },
@@ -166,6 +171,7 @@ export default function HomeScreen() {
           <Animated.View style={[StyleSheet.absoluteFill, imageStyle]}>
             <Image
               source={HERO_IMAGE}
+              accessibilityLabel="RİMAS Sonbahar / Kış 26 koleksiyonu"
               style={{ flex: 1 }}
               contentFit="cover"
               transition={500}
@@ -249,6 +255,7 @@ export default function HomeScreen() {
                 style={({ pressed }) => ({ width: 116, opacity: pressed ? 0.75 : 1 })}>
                 <Image
                   source={category.image}
+                  accessibilityLabel={`${category.name} koleksiyonu`}
                   style={{ width: 116, height: 154, backgroundColor: Colors.paperDeep }}
                   contentFit="cover"
                   transition={250}
@@ -289,6 +296,7 @@ export default function HomeScreen() {
           <View style={{ height: 440, backgroundColor: Colors.paperDeep }}>
             <Image
               source={editorial.image}
+              accessibilityLabel={editorial.title}
               style={{ flex: 1 }}
               contentFit="cover"
               transition={400}
@@ -335,6 +343,7 @@ export default function HomeScreen() {
         <View style={{ marginTop: 46 }}>
           <Image
             source={story.image}
+            accessibilityLabel={story.title}
             style={{ width: '100%', height: 380, backgroundColor: Colors.paperDeep }}
             contentFit="cover"
             transition={400}
