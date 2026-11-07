@@ -570,21 +570,36 @@ export function packDistribution(pack: ProductPack): string {
   return pack.units.map((unit) => `${unit.size} ×${unit.qty}`).join(' · ');
 }
 
-/** A pack cannot ship when one of its sizes is sold out. */
-export function packAvailable(product: Product, pack: ProductPack): boolean {
-  if (!product.soldOutSizes?.length) return true;
-  return pack.units.every((unit) => !product.soldOutSizes?.includes(unit.size));
+/**
+ * A pack cannot ship when one of its sizes is sold out.
+ *
+ * `soldOut` overrides the catalogue's demo availability with the live stock
+ * snapshot, so Nebim can close a pack without editing the catalogue.
+ */
+export function packAvailable(
+  product: Product,
+  pack: ProductPack,
+  soldOut?: readonly string[]
+): boolean {
+  const blocked = soldOut ?? product.soldOutSizes;
+  if (!blocked?.length) return true;
+  return pack.units.every((unit) => !blocked.includes(unit.size));
 }
 
 /** The pack shown on cards and in listings: the first one that can ship. */
-export function primaryPack(product: Product): ProductPack | null {
+export function primaryPack(
+  product: Product,
+  soldOut?: readonly string[]
+): ProductPack | null {
   if (product.packs.length === 0) return null;
-  return product.packs.find((pack) => packAvailable(product, pack)) ?? product.packs[0];
+  return (
+    product.packs.find((pack) => packAvailable(product, pack, soldOut)) ?? product.packs[0]
+  );
 }
 
 /** Cheapest way to buy the product, used for "başlangıç fiyatı" displays. */
-export function entryPrice(product: Product): number {
-  const pack = primaryPack(product);
+export function entryPrice(product: Product, soldOut?: readonly string[]): number {
+  const pack = primaryPack(product, soldOut);
   if (!pack) return product.unitPrice;
   return packNetPrice(product, pack);
 }

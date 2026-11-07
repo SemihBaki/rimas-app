@@ -13,6 +13,7 @@ import {
 } from '@/lib/pricing';
 
 import { db, newOrderNumber, nowIso } from './db';
+import { soldOutSizesFor } from './stock';
 
 export { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING, EXPRESS_SHIPPING } from '@/lib/pricing';
 
@@ -136,10 +137,12 @@ function resolveItems(input: unknown): OrderItem[] | null {
 
     const vatRate = product.vatRate ?? VAT_RATE;
     const packId = typeof raw.packId === 'string' && raw.packId ? raw.packId : null;
+    // Warehouse snapshot wins over the catalogue's demo availability.
+    const soldOut = soldOutSizesFor(product.id, product.soldOutSizes);
 
     if (packId) {
       const pack = product.packs.find((item) => item.id === packId);
-      if (!pack || !packAvailable(product, pack)) return null;
+      if (!pack || !packAvailable(product, pack, soldOut)) return null;
       clean.push({
         productId,
         name: product.name,
@@ -160,7 +163,7 @@ function resolveItems(input: unknown): OrderItem[] | null {
     if (!product.allowSinglePiece) return null;
     const size = typeof raw.size === 'string' ? raw.size : '';
     if (!size || !product.sizes.includes(size)) return null;
-    if (product.soldOutSizes?.includes(size)) return null;
+    if (soldOut.includes(size)) return null;
 
     clean.push({
       productId,

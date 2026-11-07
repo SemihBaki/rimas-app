@@ -11,6 +11,7 @@ import Animated, {
 
 import { Colors, Spacing } from '@/constants/theme';
 import {
+  packAvailable,
   packLabel,
   packNetPrice,
   primaryPack,
@@ -18,6 +19,7 @@ import {
 } from '@/data/catalog';
 import { formatPrice } from '@/lib/format';
 import { useShop } from '@/store/shop';
+import { useSoldOutSizes } from '@/store/stock';
 
 import { BodyStrong, Label, Money, Small } from './typography';
 
@@ -36,9 +38,11 @@ export function ProductCard({
 }: ProductCardProps) {
   const favorite = useShop((state) => state.favorites.includes(product.id));
   const toggleFavorite = useShop((state) => state.toggleFavorite);
+  const soldOut = useSoldOutSizes(product.id, product.soldOutSizes);
   const scale = useSharedValue(1);
 
-  const pack = primaryPack(product);
+  const pack = primaryPack(product, soldOut);
+  const packSoldOut = pack ? !packAvailable(product, pack, soldOut) : false;
   /** Cards lead with the per-piece price so nobody has to divide the pack total. */
   const price = product.unitPrice;
   const listPrice = product.listUnitPrice ?? null;
@@ -108,7 +112,9 @@ export function ProductCard({
             </View>
             <Small style={{ fontSize: 10.5, color: Colors.inkMuted, marginTop: 1 }}>
               {pack && packPrice !== null
-                ? `${packLabel(pack)} · ${formatPrice(packPrice)} + KDV`
+                ? packSoldOut
+                  ? `${packLabel(pack)} · Seri tükendi`
+                  : `${packLabel(pack)} · ${formatPrice(packPrice)} + KDV`
                 : `Tek parça · ${product.colors.length} renk`}
             </Small>
           </View>

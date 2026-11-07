@@ -87,9 +87,24 @@ Katalog toptan satışa göre kurulmuştur:
 
 Hesaplar tek yerde toplanır: `src/lib/pricing.ts` (istemci ve sunucu aynı formülü kullanır), seri yardımcıları `src/data/catalog.ts` içindedir.
 
+## Stok ve Nebim
+
+Stok üç katmanlıdır; hiçbir ekran doğrudan Nebim'e konuşmaz:
+
+1. **Sağlayıcı** (`src/server/stock.ts`) — `NEBIM_MODE=mock` (varsayılan) katalogdaki demo tükenmiş bedenleri kullanır. `live` gerçek Nebim sağlayıcısını seçer; bağlantı bilgileri gelene kadar bilerek çalışmaz.
+2. **SQLite anlık görüntüsü** — `stock_availability` ve `stock_meta` tabloları. Uygulama ve sipariş API'si yalnızca bu tabloyu okur; Nebim yavaş veya kapalıyken mağaza çalışmaya devam eder.
+3. **İstemci katmanı** (`src/store/stock.ts`) — `/api/stock` yanıtını katalog verisinin üzerine bindirir. Tükenen beden, o bedeni içeren seriyi ve tek parça seçeneğini anında kapatır; sepet toplamı da bu veriye göre yeniden hesaplanır.
+
+Uçlar:
+
+- `GET /api/stock` → `{ source, updatedAt, soldOut: { productId: ["L"] } }`
+- `POST /api/stock` → sağlayıcıdan yeni anlık görüntü çeker. Üretimde `x-stock-token` başlığı `STOCK_SYNC_TOKEN` değeriyle eşleşmelidir.
+
+Değişkenler `.env.example` içinde listelenmiştir. Nebim'den beklenenler: uç nokta ve kimlik doğrulama yöntemi, IP izin listesi, hız limitleri ve lot dağılımının nasıl döndüğü. Sipariş oluşturulurken stok yeniden doğrulanır; tükenmiş bir seri veya beden siparişe dönüşemez.
+
 ## Veri ve demo kapsamı
 
-Katalog `src/data/catalog.ts` içinde yerel olarak tanımlıdır; gerçek bir servise geçmek için yalnızca bu katmanı değiştirmek yeterlidir. Ödeme adımı demodedir: kart bilgisi saklanmaz, sipariş numarası üretilir ve `AsyncStorage` üzerinde tutulur.
+Katalog `src/data/catalog.ts` içinde yerel olarak tanımlıdır; gerçek bir servise geçmek için yalnızca bu katmanı değiştirmek yeterlidir. Hesaplar, oturumlar, siparişler ve favoriler sunucuda SQLite (`.data/rimas.db`) içinde tutulur. Ödeme adımı demodedir: kart bilgisi saklanmaz, sipariş numarası üretilip sunucuya yazılır.
 
 Ürün fotoğrafları şimdilik temsilidir; marka çekimleri hazır olduğunda `assets/images/catalog/` altındaki dosyalar aynı adlarla değiştirilebilir.
 

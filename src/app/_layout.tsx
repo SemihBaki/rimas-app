@@ -16,6 +16,7 @@ import { Colors, Layout, Shadow } from '@/constants/theme';
 import { isStandaloneWebApp } from '@/lib/standalone';
 import { useAuth } from '@/store/auth';
 import { useShop } from '@/store/shop';
+import { useStock } from '@/store/stock';
 import { startAccountSync } from '@/store/sync';
 
 SplashScreen.preventAutoHideAsync();
@@ -110,6 +111,7 @@ export default function RootLayout() {
   // (effects never run during server rendering).
   useEffect(() => {
     void useAuth.getState().bootstrap();
+    void useStock.getState().refresh();
     startAccountSync();
   }, []);
 

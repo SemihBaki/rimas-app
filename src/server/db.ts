@@ -75,6 +75,19 @@ CREATE TABLE IF NOT EXISTS favorites (
   created_at TEXT NOT NULL,
   PRIMARY KEY (user_id, product_id)
 );
+
+CREATE TABLE IF NOT EXISTS stock_availability (
+  product_id TEXT NOT NULL,
+  size TEXT NOT NULL,
+  available INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (product_id, size)
+);
+
+CREATE TABLE IF NOT EXISTS stock_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `;
 
 function databasePath() {

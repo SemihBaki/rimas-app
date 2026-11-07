@@ -37,6 +37,7 @@ import { formatPrice, sizeLabel } from '@/lib/format';
 import { roundMoney } from '@/lib/pricing';
 import { buildMetadata, firstParam } from '@/lib/seo';
 import { MAX_LINE_QTY, useShop } from '@/store/shop';
+import { useSoldOutSizes } from '@/store/stock';
 
 export const generateMetadata: GenerateMetadataFunction = (_request, params) => {
   const product = getProduct(firstParam(params.id));
@@ -67,6 +68,8 @@ export default function ProductScreen() {
   const favorite = useShop((state) =>
     product ? state.favorites.includes(product.id) : false
   );
+  /** Live warehouse availability, overlaid on the catalogue's demo stock. */
+  const soldOut = useSoldOutSizes(product?.id ?? id, product?.soldOutSizes);
 
   const [colorIndex, setColorIndex] = useState(0);
   const [mode, setMode] = useState<'pack' | 'piece'>(
@@ -112,12 +115,22 @@ export default function ProductScreen() {
   const lineNet = roundMoney(unitNet * quantity);
   /** Header always advertises the per-piece price, never the pack total. */
   const listPrice = product.listUnitPrice ?? null;
-  const canBuy = mode === 'pack' ? Boolean(pack) : Boolean(size);
+  const packCanShip = pack ? packAvailable(product, pack, soldOut) : false;
+  const sizeCanShip = size ? !soldOut.includes(size) : false;
+  const canBuy = mode === 'pack' ? Boolean(pack) && packCanShip : sizeCanShip;
 
   const handleAdd = () => {
     if (!canBuy) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      toast.show(mode === 'pack' ? 'Lütfen bir seri seçin' : 'Lütfen bir beden seçin');
+      toast.show(
+        mode === 'pack'
+          ? pack
+            ? 'Bu seri tükendi'
+            : 'Lütfen bir seri seçin'
+          : size
+            ? 'Bu beden tükendi'
+            : 'Lütfen bir beden seçin'
+      );
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -329,7 +342,7 @@ export default function ProductScreen() {
               <View style={{ marginTop: 12, gap: 8 }}>
                 {packs.map((option, index) => {
                   const selected = mode === 'pack' && index === packIndex;
-                  const available = packAvailable(product, option);
+                  const available = packAvailable(product, option, soldOut);
                   return (
                     <Pressable
                       key={option.id}
@@ -432,14 +445,14 @@ export default function ProductScreen() {
               <Label>Beden</Label>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                 {product.sizes.map((option) => {
-                  const soldOut = product.soldOutSizes?.includes(option) ?? false;
+                  const soldOutSize = soldOut.includes(option);
                   const selected = size === option;
                   return (
                     <Pressable
                       key={option}
                       accessibilityRole="button"
                       accessibilityLabel={sizeLabel(option)}
-                      disabled={soldOut}
+                      disabled={soldOutSize}
                       onPress={() => {
                         Haptics.selectionAsync().catch(() => {});
                         setSize(option);
@@ -453,13 +466,13 @@ export default function ProductScreen() {
                         backgroundColor: selected ? Colors.ink : 'transparent',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        opacity: soldOut ? 0.35 : 1,
+                        opacity: soldOutSize ? 0.35 : 1,
                       }}>
                       <Label
                         style={{
                           color: selected ? Colors.paper : Colors.ink,
                           letterSpacing: 1.2,
-                          textDecorationLine: soldOut ? 'line-through' : 'none',
+                          textDecorationLine: soldOutSize ? 'line-through' : 'none',
                         }}>
                         {option}
                       </Label>
@@ -581,8 +594,12 @@ export default function ProductScreen() {
             canBuy
               ? 'Sepete ekle'
               : mode === 'pack'
-                ? 'Seri seçin'
-                : 'Beden seçin'
+                ? pack
+                  ? 'Seri tükendi'
+                  : 'Seri seçin'
+                : size
+                  ? 'Beden tükendi'
+                  : 'Beden seçin'
           }
           onPress={handleAdd}
         />

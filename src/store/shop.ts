@@ -21,6 +21,8 @@ import {
   type Totals,
 } from '@/lib/pricing';
 
+import { soldOutSizesFor, useStock } from './stock';
+
 /** Wholesale shoppers buy many packs; ten was a retail limit. */
 export const MAX_LINE_QTY = 50;
 
@@ -187,9 +189,15 @@ export function resolveLine(line: CartLine): ResolvedLine | null {
     ? product.packs.find((entry) => entry.id === line.packId) ?? null
     : null;
 
+  const soldOut = soldOutSizesFor(product.id, product.soldOutSizes);
+
   // A retired pack, or a pack that can no longer ship, is dropped from totals
   // instead of silently selling something the warehouse cannot fulfil.
-  if (line.packId && (!pack || !packAvailable(product, pack))) return null;
+  if (line.packId && (!pack || !packAvailable(product, pack, soldOut))) return null;
+
+  // Same rule for single pieces: a size the warehouse marked sold out leaves
+  // the cart instead of reaching checkout.
+  if (!line.packId && line.size && soldOut.includes(line.size)) return null;
 
   const piecesPerUnit = pack ? packPieces(pack) : 1;
   const unitNet = pack ? packNetPrice(product, pack) : product.unitPrice;
@@ -219,11 +227,14 @@ export function resolveLines(lines: CartLine[]): ResolvedLine[] {
 
 export function useCartLines(): ResolvedLine[] {
   const lines = useShop((state) => state.lines);
+  // Availability feeds the totals, so recompute when the snapshot changes.
+  useStock((state) => state.soldOut);
   return resolveLines(lines);
 }
 
 /** Number of physical pieces in the cart, not the number of packs. */
 export function useCartCount(): number {
+  useStock((state) => state.soldOut);
   return resolveLines(useShop((state) => state.lines)).reduce(
     (total, line) => total + line.pieceCount,
     0
@@ -232,6 +243,7 @@ export function useCartCount(): number {
 
 /** Net (VAT-excluded) subtotal — the base for the free-shipping threshold. */
 export function useCartSubtotal(): number {
+  useStock((state) => state.soldOut);
   return resolveLines(useShop((state) => state.lines)).reduce(
     (total, line) => total + line.lineNet,
     0
