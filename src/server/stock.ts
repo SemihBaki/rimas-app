@@ -170,8 +170,14 @@ export function setStockAvailability(
   return true;
 }
 
-/** Sold-out sizes for one product, falling back to the catalogue definition. */
-export function soldOutSizesFor(productId: string, fallback?: string[]): string[] {
-  const snapshot = readStock();
-  return snapshot.soldOut[productId] ?? fallback ?? [];
+/**
+ * Sold-out sizes for one product, read from the snapshot only.
+ *
+ * The snapshot is always seeded, so a product missing from `soldOut` means
+ * every size is available. Falling back to the catalogue's demo sizes here
+ * would block packs the warehouse reports in stock (and disagree with the
+ * client overlay in `src/store/stock.ts`).
+ */
+export function soldOutSizesFor(productId: string): string[] {
+  return readStock().soldOut[productId] ?? [];
 }

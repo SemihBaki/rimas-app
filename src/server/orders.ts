@@ -62,6 +62,13 @@ export type OrderInput = {
   items: unknown;
 };
 
+export const ORDER_STATUSES = ['hazirlaniyor', 'kargoda', 'teslim'] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+function toStatus(value: string | null): OrderStatus {
+  return ORDER_STATUSES.find((status) => status === value) ?? 'hazirlaniyor';
+}
+
 export type OrderSummary = {
   number: string;
   email: string;
@@ -78,7 +85,7 @@ export type OrderSummary = {
   shippingCost: number;
   total: number;
   delivery: string;
-  status: 'hazirlaniyor' | 'kargoda' | 'teslim';
+  status: OrderStatus;
   createdAt: string;
   items: OrderItem[];
 };
@@ -100,6 +107,7 @@ type OrderRow = {
   total: number;
   item_count: number;
   delivery: string;
+  status: string | null;
   created_at: string;
 };
 
@@ -132,13 +140,14 @@ function resolveItems(input: unknown): OrderItem[] | null {
     const qty = Number(raw.qty);
     if (!Number.isInteger(qty) || qty < 1 || qty > 50) return null;
 
-    const color = typeof raw.color === 'string' ? raw.color.trim().slice(0, 40) : '';
-    if (!color) return null;
+    // Each colour is its own series, so only the product's own colours can be ordered.
+    const color = typeof raw.color === 'string' ? raw.color.trim() : '';
+    if (!product.colors.some((option) => option.name === color)) return null;
 
     const vatRate = product.vatRate ?? VAT_RATE;
     const packId = typeof raw.packId === 'string' && raw.packId ? raw.packId : null;
     // Warehouse snapshot wins over the catalogue's demo availability.
-    const soldOut = soldOutSizesFor(product.id, product.soldOutSizes);
+    const soldOut = soldOutSizesFor(product.id);
 
     if (packId) {
       const pack = product.packs.find((item) => item.id === packId);
@@ -200,13 +209,23 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
   const delivery = deliveryDate(shipping === 'express' ? 1 : 3);
 
   const database = db();
-  database
-    .prepare(
-      `INSERT INTO orders (number, user_id, email, name, phone, address, city, district, postal_code,
-                           shipping, subtotal, vat_total, shipping_cost, total, item_count, delivery, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
+  const insertOrder = database.prepare(
+    `INSERT INTO orders (number, user_id, email, name, phone, address, city, district, postal_code,
+                         shipping, subtotal, vat_total, shipping_cost, total, item_count, delivery,
+                         status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  const insertItem = database.prepare(
+    `INSERT INTO order_items (order_number, product_id, name, size, color, qty, price,
+                              pack_id, pack_label, pack_pieces, unit_price, vat_rate)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+
+  // Header and lines are written together: a failure halfway must not leave
+  // an order without items.
+  database.exec('BEGIN');
+  try {
+    insertOrder.run(
       number,
       userId,
       input.email,
@@ -223,29 +242,29 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
       totals.total,
       itemCount,
       delivery,
+      'hazirlaniyor',
       createdAt
     );
-
-  const insertItem = database.prepare(
-    `INSERT INTO order_items (order_number, product_id, name, size, color, qty, price,
-                              pack_id, pack_label, pack_pieces, unit_price, vat_rate)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  );
-  for (const item of items) {
-    insertItem.run(
-      number,
-      item.productId,
-      item.name,
-      item.size,
-      item.color,
-      item.qty,
-      item.price,
-      item.packId,
-      item.packLabel,
-      item.packPieces,
-      item.unitPrice,
-      item.vatRate
-    );
+    for (const item of items) {
+      insertItem.run(
+        number,
+        item.productId,
+        item.name,
+        item.size,
+        item.color,
+        item.qty,
+        item.price,
+        item.packId,
+        item.packLabel,
+        item.packPieces,
+        item.unitPrice,
+        item.vatRate
+      );
+    }
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
   }
 
   return {
@@ -325,7 +344,7 @@ function toSummary(row: OrderRow, withItems: boolean): OrderSummary {
     shippingCost: row.shipping_cost,
     total: row.total,
     delivery: row.delivery,
-    status: 'hazirlaniyor',
+    status: toStatus(row.status),
     createdAt: row.created_at,
     items: withItems ? itemsFor(row.number) : [],
   };
