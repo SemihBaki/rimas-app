@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total REAL NOT NULL,
   item_count INTEGER NOT NULL,
   delivery TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'hazirlaniyor',
   created_at TEXT NOT NULL
 );
 
@@ -113,6 +114,7 @@ function addColumnIfMissing(
 
 function migrate(instance: DatabaseSync) {
   addColumnIfMissing(instance, 'orders', 'vat_total', 'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(instance, 'orders', 'status', "TEXT NOT NULL DEFAULT 'hazirlaniyor'");
   addColumnIfMissing(instance, 'order_items', 'pack_id', 'TEXT');
   addColumnIfMissing(instance, 'order_items', 'pack_label', 'TEXT');
   addColumnIfMissing(instance, 'order_items', 'pack_pieces', 'INTEGER NOT NULL DEFAULT 1');
