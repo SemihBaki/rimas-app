@@ -1,7 +1,9 @@
 import {
   categoryName,
-  packAvailable,
+  colorInStock,
+  type ColorOption,
   type Product,
+  type StockLevels,
 } from '@/data/catalog';
 import { VAT_RATE, roundMoney } from '@/lib/pricing';
 
@@ -14,15 +16,12 @@ import { VAT_RATE, roundMoney } from '@/lib/pricing';
 export function productJsonLd(
   product: Product,
   origin: string,
-  soldOut: string[] = []
+  levelsFor: (color: ColorOption) => StockLevels = () => null
 ): string {
   const vatRate = product.vatRate ?? VAT_RATE;
   const price = roundMoney(product.unitPrice * (1 + vatRate));
 
-  const inStock =
-    product.packs.length > 0
-      ? product.packs.some((pack) => packAvailable(product, pack, soldOut))
-      : product.sizes.some((size) => !soldOut.includes(size));
+  const inStock = product.colors.some((color) => colorInStock(product, levelsFor(color)));
 
   const data = {
     '@context': 'https://schema.org',

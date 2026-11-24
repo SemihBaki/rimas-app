@@ -4,11 +4,13 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import {
   PRODUCTS,
-  packAvailable,
+  findColor,
   packDistribution,
   packLabel,
   packNetPrice,
   packPieces,
+  packsInStock,
+  piecesInStock,
   type Product,
   type ProductPack,
 } from '@/data/catalog';
@@ -21,7 +23,7 @@ import {
   type Totals,
 } from '@/lib/pricing';
 
-import { soldOutSizesFor, useStock } from './stock';
+import { stockLevelsFor, useStock } from './stock';
 
 /** Wholesale shoppers buy many packs; ten was a retail limit. */
 export const MAX_LINE_QTY = 50;
@@ -179,6 +181,8 @@ export type ResolvedLine = CartLine & {
   title: string;
   /** "S ×2 · M ×2 · L ×2" or "M beden" */
   detail: string;
+  /** Most units this colour can ship (packs or pieces); Infinity before stock loads. */
+  maxQty: number;
 };
 
 export function resolveLine(line: CartLine): ResolvedLine | null {
@@ -189,15 +193,20 @@ export function resolveLine(line: CartLine): ResolvedLine | null {
     ? product.packs.find((entry) => entry.id === line.packId) ?? null
     : null;
 
-  const soldOut = soldOutSizesFor(product.id, product.soldOutSizes);
+  // Each colour is its own series with its own stock.
+  const color = findColor(product, line.color);
+  if (!color) return null;
+  const levels = stockLevelsFor(product.id, color.code);
 
-  // A retired pack, or a pack that can no longer ship, is dropped from totals
-  // instead of silently selling something the warehouse cannot fulfil.
-  if (line.packId && (!pack || !packAvailable(product, pack, soldOut))) return null;
-
-  // Same rule for single pieces: a size the warehouse marked sold out leaves
-  // the cart instead of reaching checkout.
-  if (!line.packId && line.size && soldOut.includes(line.size)) return null;
+  // A retired pack, or a series/size this colour can no longer ship, is
+  // dropped from totals instead of selling what the warehouse cannot fulfil.
+  if (line.packId && !pack) return null;
+  const maxQty = pack
+    ? packsInStock(pack, levels)
+    : line.size
+      ? piecesInStock(line.size, levels)
+      : 0;
+  if (maxQty <= 0) return null;
 
   const piecesPerUnit = pack ? packPieces(pack) : 1;
   const unitNet = pack ? packNetPrice(product, pack) : product.unitPrice;
@@ -216,6 +225,7 @@ export function resolveLine(line: CartLine): ResolvedLine | null {
     lineVat: roundMoney(lineNet * vatRate),
     title: pack ? packLabel(pack) : 'Tek parça',
     detail: pack ? packDistribution(pack) : sizeLabel(line.size),
+    maxQty,
   };
 }
 
@@ -228,13 +238,13 @@ export function resolveLines(lines: CartLine[]): ResolvedLine[] {
 export function useCartLines(): ResolvedLine[] {
   const lines = useShop((state) => state.lines);
   // Availability feeds the totals, so recompute when the snapshot changes.
-  useStock((state) => state.soldOut);
+  useStock((state) => state.levels);
   return resolveLines(lines);
 }
 
 /** Number of physical pieces in the cart, not the number of packs. */
 export function useCartCount(): number {
-  useStock((state) => state.soldOut);
+  useStock((state) => state.levels);
   return resolveLines(useShop((state) => state.lines)).reduce(
     (total, line) => total + line.pieceCount,
     0
@@ -243,7 +253,7 @@ export function useCartCount(): number {
 
 /** Net (VAT-excluded) subtotal — the base for the free-shipping threshold. */
 export function useCartSubtotal(): number {
-  useStock((state) => state.soldOut);
+  useStock((state) => state.levels);
   return resolveLines(useShop((state) => state.lines)).reduce(
     (total, line) => total + line.lineNet,
     0

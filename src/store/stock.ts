@@ -1,23 +1,26 @@
 import { create } from 'zustand';
 
+import type { StockLevels } from '@/data/catalog';
 import { api } from '@/lib/api';
 
 /**
- * Client-side stock overlay.
+ * Client-side copy of the Nebim stock snapshot (`/api/stock`).
  *
- * The catalogue still ships with demo availability so the app works offline.
- * When the stock API answers, its snapshot replaces that demo data for every
- * product it mentions. Screens subscribe to this store, so a warehouse update
- * closes packs and sizes without a redeploy.
+ * Until the first answer arrives every lookup returns `null` ("not known"),
+ * which blocks nothing; the order API checks stock again anyway. Screens
+ * subscribe to this store, so a warehouse update closes colours and series
+ * without a redeploy.
  */
 
 export type StockSource = 'catalog' | 'mock' | 'nebim';
 
+/** productId -> colour code -> size -> pieces on hand. */
+type StockMap = Record<string, Record<string, Record<string, number>>>;
+
 type StockSnapshot = {
   source: StockSource;
   updatedAt: string;
-  /** productId -> sizes that cannot ship. */
-  soldOut: Record<string, string[]>;
+  levels: StockMap;
 };
 
 type StockState = StockSnapshot & {
@@ -26,12 +29,12 @@ type StockState = StockSnapshot & {
   refresh: () => Promise<void>;
 };
 
-const EMPTY: string[] = [];
+const NOTHING: Readonly<Record<string, number>> = Object.freeze({});
 
 export const useStock = create<StockState>()((set, get) => ({
   source: 'catalog',
   updatedAt: '',
-  soldOut: {},
+  levels: {},
   loaded: false,
   loading: false,
 
@@ -43,27 +46,38 @@ export const useStock = create<StockState>()((set, get) => ({
       set({
         source: snapshot.source ?? 'catalog',
         updatedAt: snapshot.updatedAt ?? '',
-        soldOut: snapshot.soldOut ?? {},
+        levels: snapshot.levels ?? {},
         loaded: true,
         loading: false,
       });
     } catch {
-      // Keep the catalogue's demo availability when the API is unreachable.
+      // Stay "not known" when the API is unreachable; checkout still validates.
       set({ loading: false });
     }
   },
 }));
 
-/** Sold-out sizes for one product, falling back to the catalogue defaults. */
-export function soldOutSizesFor(productId: string, fallback: string[] = EMPTY): string[] {
-  const state = useStock.getState();
-  if (!state.loaded) return fallback;
-  return state.soldOut[productId] ?? EMPTY;
+function pick(state: StockState, productId: string, colorCode: string): StockLevels {
+  if (!state.loaded) return null;
+  return state.levels[productId]?.[colorCode] ?? NOTHING;
 }
 
-/** Reactive variant: re-renders the caller when availability changes. */
-export function useSoldOutSizes(productId: string, fallback: string[] = EMPTY): string[] {
-  return useStock((state) =>
-    state.loaded ? state.soldOut[productId] ?? EMPTY : fallback
-  );
+/** Stock of one product colour, read once (outside React). */
+export function stockLevelsFor(productId: string, colorCode: string): StockLevels {
+  return pick(useStock.getState(), productId, colorCode);
+}
+
+/** Reactive variant: re-renders the caller when the snapshot changes. */
+export function useStockLevels(productId: string, colorCode: string): StockLevels {
+  return useStock((state) => pick(state, productId, colorCode));
+}
+
+/**
+ * Reactive lookup for every colour of a product (cards, listings).
+ * Returns a function so the caller can ask per colour without extra hooks.
+ */
+export function useStockLookup(productId: string): (colorCode: string) => StockLevels {
+  const loaded = useStock((state) => state.loaded);
+  const byColor = useStock((state) => state.levels[productId]);
+  return (colorCode) => (loaded ? byColor?.[colorCode] ?? NOTHING : null);
 }

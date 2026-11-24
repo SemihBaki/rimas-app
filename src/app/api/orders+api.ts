@@ -1,6 +1,6 @@
 import { currentUser } from '@/server/auth';
 import { EMAIL_PATTERN, fail, normalizeEmail, ok, readJson, text } from '@/server/http';
-import { createOrder, listOrders, type OrderInput } from '@/server/orders';
+import { OrderError, createOrder, listOrders, type OrderInput } from '@/server/orders';
 
 type Body = {
   email?: unknown;
@@ -58,7 +58,10 @@ export async function POST(request: Request) {
   try {
     const order = createOrder(input, user?.id ?? null);
     return ok({ order }, { status: 201 });
-  } catch {
+  } catch (error) {
+    if (error instanceof OrderError && error.code === 'OUT_OF_STOCK') {
+      return fail(409, 'OUT_OF_STOCK', error.message);
+    }
     return fail(400, 'VALIDATION', 'Sepet bilgileri geçersiz.');
   }
 }

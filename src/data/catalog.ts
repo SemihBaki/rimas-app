@@ -1,6 +1,8 @@
 import type { ImageSource } from 'expo-image';
 
 export type ColorOption = {
+  /** Nebim colour code (ColorCode). Each colour is sold as its own series. */
+  code: string;
   name: string;
   hex: string;
 };
@@ -33,6 +35,8 @@ export type ProductPack = {
 
 export type Product = {
   id: string;
+  /** Nebim model code (ItemCode), e.g. "9990". */
+  code: string;
   name: string;
   category: CategoryId;
   /** Net price of a single piece, VAT excluded. Pack prices derive from it. */
@@ -45,7 +49,6 @@ export type Product = {
   colors: ColorOption[];
   /** Size pool: used by the size guide and by single-piece sales. */
   sizes: string[];
-  soldOutSizes?: string[];
   /** Empty when the product is only sold per piece. */
   packs: ProductPack[];
   /** Exception flag: lets this product be bought one piece at a time. */
@@ -112,18 +115,18 @@ export const CATEGORIES: Category[] = [
 export const PRODUCTS: Product[] = [
   {
     id: 'trench',
+    code: '9990',
     name: 'Yün Karışımlı Trençkot',
     category: 'dis-giyim',
     unitPrice: 1450,
     listUnitPrice: 1890,
     badge: 'Yeni',
     colors: [
-      { name: 'Kum', hex: '#C9B69F' },
-      { name: 'Siyah', hex: '#171717' },
-      { name: 'Zeytin', hex: '#5C5B4A' },
+      { code: '010', name: 'Kum', hex: '#C9B69F' },
+      { code: '001', name: 'Siyah', hex: '#171717' },
+      { code: '020', name: 'Zeytin', hex: '#5C5B4A' },
     ],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
-    soldOutSizes: ['XS'],
     packs: [
       {
         id: 'trench-5',
@@ -155,15 +158,16 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'shirt',
+    code: '9991',
     name: 'Oversize Poplin Gömlek',
     category: 'gomlek',
     unitPrice: 450,
     listUnitPrice: 590,
     badge: 'Yeni',
     colors: [
-      { name: 'Beyaz', hex: '#F7F6F3' },
-      { name: 'Ekru', hex: '#E8E1D5' },
-      { name: 'Gök Mavisi', hex: '#AFC4D6' },
+      { code: '002', name: 'Beyaz', hex: '#F7F6F3' },
+      { code: '003', name: 'Ekru', hex: '#E8E1D5' },
+      { code: '030', name: 'Gök Mavisi', hex: '#AFC4D6' },
     ],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
     packs: [
@@ -206,17 +210,17 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'dress',
+    code: '9992',
     name: 'Saten Askılı Elbise',
     category: 'elbise',
     unitPrice: 800,
     listUnitPrice: 1050,
     badge: 'Çok Satan',
     colors: [
-      { name: 'Siyah', hex: '#141414' },
-      { name: 'Gümüş', hex: '#B9B7B2' },
+      { code: '001', name: 'Siyah', hex: '#141414' },
+      { code: '040', name: 'Gümüş', hex: '#B9B7B2' },
     ],
     sizes: ['XS', 'S', 'M', 'L'],
-    soldOutSizes: ['L'],
     packs: [
       {
         id: 'dress-4',
@@ -248,14 +252,15 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'knit',
+    code: '9993',
     name: 'Örgü Triko Kazak',
     category: 'triko',
     unitPrice: 550,
     listUnitPrice: 720,
     colors: [
-      { name: 'Kum', hex: '#CDBBA6' },
-      { name: 'Krem', hex: '#EFE7DA' },
-      { name: 'Antrasit', hex: '#3A3A3C' },
+      { code: '010', name: 'Kum', hex: '#CDBBA6' },
+      { code: '011', name: 'Krem', hex: '#EFE7DA' },
+      { code: '050', name: 'Antrasit', hex: '#3A3A3C' },
     ],
     sizes: ['S', 'M', 'L', 'XL'],
     packs: [
@@ -289,16 +294,16 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'denim',
+    code: '9994',
     name: 'Yüksek Bel Geniş Paça Jean',
     category: 'denim',
     unitPrice: 500,
     listUnitPrice: 680,
     colors: [
-      { name: 'Açık Mavi', hex: '#A9BDD1' },
-      { name: 'Indigo', hex: '#3D4E68' },
+      { code: '031', name: 'Açık Mavi', hex: '#A9BDD1' },
+      { code: '032', name: 'Indigo', hex: '#3D4E68' },
     ],
     sizes: ['24', '26', '28', '30', '32'],
-    soldOutSizes: ['24'],
     packs: [
       {
         id: 'denim-6',
@@ -331,14 +336,15 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'tote',
+    code: '9995',
     name: 'Yumuşak Deri Çanta',
     category: 'aksesuar',
     unitPrice: 1250,
     listUnitPrice: 1650,
     badge: 'Yeni',
     colors: [
-      { name: 'Tabac', hex: '#8B5E3C' },
-      { name: 'Siyah', hex: '#141414' },
+      { code: '060', name: 'Tabac', hex: '#8B5E3C' },
+      { code: '001', name: 'Siyah', hex: '#141414' },
     ],
     sizes: ['Tek Beden'],
     packs: [],
@@ -362,11 +368,12 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'necklace',
+    code: '9996',
     name: 'Altın Kaplama Zincir Kolye',
     category: 'aksesuar',
     unitPrice: 300,
     listUnitPrice: 420,
-    colors: [{ name: 'Altın', hex: '#C8A25C' }],
+    colors: [{ code: '070', name: 'Altın', hex: '#C8A25C' }],
     sizes: ['Tek Beden'],
     packs: [],
     allowSinglePiece: true,
@@ -384,13 +391,14 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: 'blazer',
+    code: '9997',
     name: 'Kruvaze Yün Blazer',
     category: 'dis-giyim',
     unitPrice: 1400,
     listUnitPrice: 1850,
     colors: [
-      { name: 'Antrasit', hex: '#3A3A3C' },
-      { name: 'Kum', hex: '#C9B69F' },
+      { code: '050', name: 'Antrasit', hex: '#3A3A3C' },
+      { code: '010', name: 'Kum', hex: '#C9B69F' },
     ],
     sizes: ['XS', 'S', 'M', 'L'],
     packs: [
@@ -570,37 +578,57 @@ export function packDistribution(pack: ProductPack): string {
   return pack.units.map((unit) => `${unit.size} ×${unit.qty}`).join(' · ');
 }
 
+/* -------------------------------- stock --------------------------------- */
+
 /**
- * A pack cannot ship when one of its sizes is sold out.
- *
- * `soldOut` overrides the catalogue's demo availability with the live stock
- * snapshot, so Nebim can close a pack without editing the catalogue.
+ * Pieces on hand per size for one product colour, as reported by Nebim.
+ * `null` means "not known yet" (the client before the first stock answer):
+ * nothing is blocked then, and the server still checks every order.
  */
-export function packAvailable(
-  product: Product,
-  pack: ProductPack,
-  soldOut?: readonly string[]
-): boolean {
-  const blocked = soldOut ?? product.soldOutSizes;
-  if (!blocked?.length) return true;
-  return pack.units.every((unit) => !blocked.includes(unit.size));
+export type StockLevels = Readonly<Record<string, number>> | null;
+
+/** Show "Son N seri" at or below this many packs. */
+export const LOW_STOCK_PACKS = 3;
+
+/** Colour of a product by its display name (cart lines store the name). */
+export function findColor(product: Product, name: string): ColorOption | undefined {
+  return product.colors.find((color) => color.name === name);
 }
 
-/** The pack shown on cards and in listings: the first one that can ship. */
-export function primaryPack(
-  product: Product,
-  soldOut?: readonly string[]
-): ProductPack | null {
-  if (product.packs.length === 0) return null;
-  return (
-    product.packs.find((pack) => packAvailable(product, pack, soldOut)) ?? product.packs[0]
+/**
+ * How many whole packs the stock can fill: the scarcest size decides.
+ * S×1 M×2 L×1 with S=10 M=8 L=3 → 3 packs.
+ */
+export function packsInStock(pack: ProductPack, levels: StockLevels): number {
+  if (!levels) return Number.POSITIVE_INFINITY;
+  return Math.min(
+    ...pack.units.map((unit) => Math.floor((levels[unit.size] ?? 0) / unit.qty))
   );
 }
 
-/** Cheapest way to buy the product, used for "başlangıç fiyatı" displays. */
-export function entryPrice(product: Product, soldOut?: readonly string[]): number {
-  const pack = primaryPack(product, soldOut);
-  if (!pack) return product.unitPrice;
-  return packNetPrice(product, pack);
+/** Pieces of one size on hand (single-piece sales). */
+export function piecesInStock(size: string, levels: StockLevels): number {
+  if (!levels) return Number.POSITIVE_INFINITY;
+  return levels[size] ?? 0;
 }
 
+/** True when this colour can ship at least one pack (or one piece). */
+export function colorInStock(product: Product, levels: StockLevels): boolean {
+  if (product.packs.some((pack) => packsInStock(pack, levels) > 0)) return true;
+  return (
+    product.allowSinglePiece && product.sizes.some((size) => piecesInStock(size, levels) > 0)
+  );
+}
+
+/** The pack shown on cards: the first one that can ship in at least one colour. */
+export function primaryPack(
+  product: Product,
+  levelsFor: (color: ColorOption) => StockLevels
+): ProductPack | null {
+  if (product.packs.length === 0) return null;
+  return (
+    product.packs.find((pack) =>
+      product.colors.some((color) => packsInStock(pack, levelsFor(color)) > 0)
+    ) ?? product.packs[0]
+  );
+}

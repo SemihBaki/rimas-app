@@ -1,6 +1,6 @@
 import {
   PRODUCTS,
-  packAvailable,
+  findColor,
   packLabel,
   packNetPrice,
   packPieces,
@@ -13,7 +13,14 @@ import {
 } from '@/lib/pricing';
 
 import { db, newOrderNumber, nowIso } from './db';
-import { soldOutSizesFor } from './stock';
+import {
+  demandKey,
+  ensureStockSeeded,
+  readStock,
+  stockLevelsFor,
+  takeStock,
+  type StockDemand,
+} from './stock';
 
 export { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING, EXPRESS_SHIPPING } from '@/lib/pricing';
 
@@ -125,10 +132,41 @@ function deliveryDate(businessDays: number): string {
   return `${dd}.${mm}`;
 }
 
-function resolveItems(input: unknown): OrderItem[] | null {
+/** A rejected order with a message the shopper can act on. */
+export class OrderError extends Error {
+  constructor(
+    readonly code: 'INVALID_ITEMS' | 'OUT_OF_STOCK',
+    message: string
+  ) {
+    super(message);
+  }
+}
+
+type ResolvedItems = {
+  items: OrderItem[];
+  /** Pieces the whole order needs per model + colour + size. */
+  demand: StockDemand;
+  /** "Ürün adı — Renk" per demand key, for the out-of-stock message. */
+  labels: Map<string, string>;
+};
+
+/**
+ * Validate the lines against the catalogue and add up the pieces they need.
+ * Stock is checked later, inside the write transaction, so two orders cannot
+ * both take the last series.
+ */
+function resolveItems(input: unknown): ResolvedItems | null {
   if (!Array.isArray(input) || input.length === 0 || input.length > 40) return null;
 
   const clean: OrderItem[] = [];
+  const demand: StockDemand = new Map();
+  const labels = new Map<string, string>();
+  const need = (productId: string, colorCode: string, size: string, pieces: number, label: string) => {
+    const key = demandKey(productId, colorCode, size);
+    demand.set(key, (demand.get(key) ?? 0) + pieces);
+    labels.set(key, label);
+  };
+
   for (const entry of input) {
     if (!entry || typeof entry !== 'object') return null;
     const raw = entry as Record<string, unknown>;
@@ -142,16 +180,19 @@ function resolveItems(input: unknown): OrderItem[] | null {
 
     // Each colour is its own series, so only the product's own colours can be ordered.
     const color = typeof raw.color === 'string' ? raw.color.trim() : '';
-    if (!product.colors.some((option) => option.name === color)) return null;
+    const colorOption = findColor(product, color);
+    if (!colorOption) return null;
+    const label = `${product.name} — ${color}`;
 
     const vatRate = product.vatRate ?? VAT_RATE;
     const packId = typeof raw.packId === 'string' && raw.packId ? raw.packId : null;
-    // Warehouse snapshot wins over the catalogue's demo availability.
-    const soldOut = soldOutSizesFor(product.id);
 
     if (packId) {
       const pack = product.packs.find((item) => item.id === packId);
-      if (!pack || !packAvailable(product, pack, soldOut)) return null;
+      if (!pack) return null;
+      for (const unit of pack.units) {
+        need(product.id, colorOption.code, unit.size, unit.qty * qty, label);
+      }
       clean.push({
         productId,
         name: product.name,
@@ -172,7 +213,7 @@ function resolveItems(input: unknown): OrderItem[] | null {
     if (!product.allowSinglePiece) return null;
     const size = typeof raw.size === 'string' ? raw.size : '';
     if (!size || !product.sizes.includes(size)) return null;
-    if (soldOut.includes(size)) return null;
+    need(product.id, colorOption.code, size, qty, label);
 
     clean.push({
       productId,
@@ -189,12 +230,13 @@ function resolveItems(input: unknown): OrderItem[] | null {
     });
   }
 
-  return clean;
+  return { items: clean, demand, labels };
 }
 
 export function createOrder(input: OrderInput, userId: string | null): OrderSummary {
-  const items = resolveItems(input.items);
-  if (!items) throw new Error('INVALID_ITEMS');
+  const resolved = resolveItems(input.items);
+  if (!resolved) throw new OrderError('INVALID_ITEMS', 'Sepet bilgileri geçersiz.');
+  const { items, demand, labels } = resolved;
 
   const shipping: ShippingMethod = input.shipping === 'express' ? 'express' : 'standart';
 
@@ -221,10 +263,27 @@ export function createOrder(input: OrderInput, userId: string | null): OrderSumm
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
-  // Header and lines are written together: a failure halfway must not leave
-  // an order without items.
-  database.exec('BEGIN');
+  ensureStockSeeded();
+
+  // Stock check, stock take, header and lines happen in one write
+  // transaction: a failure halfway leaves no order and no missing pieces,
+  // and a second order waits instead of selling the same series again.
+  database.exec('BEGIN IMMEDIATE');
   try {
+    const snapshot = readStock();
+    const short = [...demand].filter(([key, pieces]) => {
+      const [productId, colorCode, size] = key.split('|');
+      return (stockLevelsFor(snapshot, productId, colorCode)[size] ?? 0) < pieces;
+    });
+    if (short.length > 0) {
+      const names = [...new Set(short.map(([key]) => labels.get(key)))].join(', ');
+      throw new OrderError(
+        'OUT_OF_STOCK',
+        `Stok yetersiz: ${names}. Sepetinizi güncelleyip tekrar deneyin.`
+      );
+    }
+    takeStock(demand);
+
     insertOrder.run(
       number,
       userId,
