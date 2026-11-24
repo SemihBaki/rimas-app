@@ -1,7 +1,7 @@
 import { fail, ok } from '@/server/http';
 import { readStock, syncStock } from '@/server/stock';
 
-/** Public availability snapshot: productId -> sold-out sizes. */
+/** Public stock snapshot: productId -> colour code -> size -> pieces on hand. */
 export function GET() {
   try {
     return ok(readStock(), {

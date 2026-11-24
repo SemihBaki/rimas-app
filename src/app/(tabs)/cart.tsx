@@ -14,7 +14,7 @@ import { Colors, Layout } from '@/constants/theme';
 import { formatPrice } from '@/lib/format';
 import { FREE_SHIPPING_THRESHOLD, vatLabel } from '@/lib/pricing';
 import { buildMetadata } from '@/lib/seo';
-import { useCartLines, useCartTotals, useShop } from '@/store/shop';
+import { MAX_LINE_QTY, useCartLines, useCartTotals, useShop } from '@/store/shop';
 
 export const generateMetadata = () =>
   buildMetadata({
@@ -169,6 +169,12 @@ export default function CartScreen() {
                         <Small style={{ marginTop: 3, fontSize: 10 }}>
                           {line.piecesPerUnit} parça / {line.pack ? 'seri' : 'adet'}
                         </Small>
+                        {line.qty > line.maxQty ? (
+                          <Small style={{ marginTop: 4, fontSize: 10.5, color: Colors.ink }}>
+                            Stokta en fazla {line.maxQty} {line.pack ? 'seri' : 'adet'} var;
+                            adedi azaltın.
+                          </Small>
+                        ) : null}
                       </View>
 
                       <View
@@ -180,6 +186,7 @@ export default function CartScreen() {
                         }}>
                         <QuantityStepper
                           value={line.qty}
+                          max={Math.max(line.qty, Math.min(MAX_LINE_QTY, line.maxQty))}
                           onChange={(qty) => setQty(line.id, qty)}
                         />
                         <View style={{ alignItems: 'flex-end' }}>

@@ -7,6 +7,7 @@ export type ApiErrorCode =
   | 'UNAUTHORIZED'
   | 'NOT_FOUND'
   | 'TOO_MANY_REQUESTS'
+  | 'OUT_OF_STOCK'
   | 'SERVER_ERROR';
 
 export function fail(status: number, code: ApiErrorCode, message: string) {

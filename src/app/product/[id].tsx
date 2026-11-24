@@ -25,12 +25,15 @@ import { Body, BodyStrong, Display, Label, Money, Small } from '@/components/typ
 import { Colors, Layout, Spacing } from '@/constants/theme';
 import {
   categoryName,
+  LOW_STOCK_PACKS,
+  colorInStock,
   getProduct,
-  packAvailable,
   packDistribution,
   packLabel,
   packNetPrice,
   packPieces,
+  packsInStock,
+  piecesInStock,
   relatedProducts,
   sizeGuideFor,
 } from '@/data/catalog';
@@ -39,7 +42,7 @@ import { roundMoney } from '@/lib/pricing';
 import { buildMetadata, firstParam } from '@/lib/seo';
 import { productJsonLd } from '@/lib/structured-data';
 import { MAX_LINE_QTY, useShop } from '@/store/shop';
-import { useSoldOutSizes } from '@/store/stock';
+import { useStockLookup } from '@/store/stock';
 
 export const generateMetadata: GenerateMetadataFunction = (request, params) => {
   const product = getProduct(firstParam(params.id));
@@ -77,11 +80,16 @@ export default function ProductScreen() {
   const favorite = useShop((state) =>
     product ? state.favorites.includes(product.id) : false
   );
-  /** Live warehouse availability, overlaid on the catalogue's demo stock. */
-  const soldOut = useSoldOutSizes(product?.id ?? id, product?.soldOutSizes);
+  /** Nebim stock per colour; each colour is its own series. */
+  const levelsFor = useStockLookup(product?.id ?? id);
   const origin = typeof window === 'undefined' ? '' : window.location.origin;
 
   const [colorIndex, setColorIndex] = useState(0);
+  /** Once the shopper picks a colour, stock updates never change it for them. */
+  const colorPicked = useRef(false);
+  const firstInStock = product
+    ? product.colors.findIndex((option) => colorInStock(product, levelsFor(option.code)))
+    : -1;
   const [mode, setMode] = useState<'pack' | 'piece'>(
     product && product.packs.length > 0 ? 'pack' : 'piece'
   );
@@ -90,7 +98,7 @@ export default function ProductScreen() {
     product && product.sizes.length === 1 ? product.sizes[0] : null
   );
   const [activeImage, setActiveImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
+  const [requestedQuantity, setQuantity] = useState(1);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const addedTimer = useRef<any>(null);
@@ -100,6 +108,11 @@ export default function ProductScreen() {
       if (addedTimer.current) clearTimeout(addedTimer.current);
     };
   }, []);
+
+  // Open on a colour that can ship, as soon as stock is known.
+  useEffect(() => {
+    if (!colorPicked.current && firstInStock > 0) setColorIndex(firstInStock);
+  }, [firstInStock]);
 
   const pageWidth = Math.min(width, Layout.maxWidth);
 
@@ -113,6 +126,8 @@ export default function ProductScreen() {
   }
 
   const color = product.colors[colorIndex];
+  const levels = levelsFor(color.code);
+  const colorSoldOut = !colorInStock(product, levels);
   const related = relatedProducts(product);
   const guide = sizeGuideFor(product);
 
@@ -122,11 +137,15 @@ export default function ProductScreen() {
   const piecesPerPack = pack ? packPieces(pack) : 1;
   /** Net price of one cart unit: one pack, or one piece. */
   const unitNet = pack ? packNetPrice(product, pack) : product.unitPrice;
+  /** Most units this colour can ship right now (packs, or pieces of the chosen size). */
+  const inStock = pack ? packsInStock(pack, levels) : size ? piecesInStock(size, levels) : MAX_LINE_QTY;
+  const maxQuantity = Math.max(1, Math.min(MAX_LINE_QTY, inStock));
+  const quantity = Math.min(requestedQuantity, maxQuantity);
   const lineNet = roundMoney(unitNet * quantity);
   /** Header always advertises the per-piece price, never the pack total. */
   const listPrice = product.listUnitPrice ?? null;
-  const packCanShip = pack ? packAvailable(product, pack, soldOut) : false;
-  const sizeCanShip = size ? !soldOut.includes(size) : false;
+  const packCanShip = pack ? packsInStock(pack, levels) > 0 : false;
+  const sizeCanShip = size ? piecesInStock(size, levels) > 0 : false;
   const canBuy = mode === 'pack' ? Boolean(pack) && packCanShip : sizeCanShip;
 
   const handleAdd = () => {
@@ -135,7 +154,7 @@ export default function ProductScreen() {
       toast.show(
         mode === 'pack'
           ? pack
-            ? 'Bu seri tükendi'
+            ? `Bu seri ${color.name} renginde tükendi`
             : 'Lütfen bir seri seçin'
           : size
             ? 'Bu beden tükendi'
@@ -158,7 +177,7 @@ export default function ProductScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.paper }}>
-      <JsonLd json={productJsonLd(product, origin, soldOut)} />
+      <JsonLd json={productJsonLd(product, origin, (option) => levelsFor(option.code))} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}>
@@ -299,18 +318,22 @@ export default function ProductScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Label>Renk</Label>
             <Label style={{ color: Colors.ink, letterSpacing: 1 }}>
-              {color.name}
+              {colorSoldOut ? `${color.name} · Tükendi` : color.name}
             </Label>
           </View>
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
             {product.colors.map((option, index) => {
               const selected = index === colorIndex;
+              const optionSoldOut = !colorInStock(product, levelsFor(option.code));
               return (
                 <Pressable
                   key={option.name}
                   accessibilityRole="button"
-                  accessibilityLabel={option.name}
-                  onPress={() => setColorIndex(index)}
+                  accessibilityLabel={optionSoldOut ? `${option.name}, tükendi` : option.name}
+                  onPress={() => {
+                    colorPicked.current = true;
+                    setColorIndex(index);
+                  }}
                   style={{
                     width: 30,
                     height: 30,
@@ -328,8 +351,21 @@ export default function ProductScreen() {
                       backgroundColor: option.hex,
                       borderWidth: option.hex === '#F7F6F3' ? 1 : 0,
                       borderColor: Colors.line,
+                      opacity: optionSoldOut ? 0.35 : 1,
                     }}
                   />
+                  {optionSoldOut ? (
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        width: 26,
+                        height: 1,
+                        backgroundColor: Colors.ink,
+                        transform: [{ rotate: '-45deg' }],
+                      }}
+                    />
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -354,7 +390,8 @@ export default function ProductScreen() {
               <View style={{ marginTop: 12, gap: 8 }}>
                 {packs.map((option, index) => {
                   const selected = mode === 'pack' && index === packIndex;
-                  const available = packAvailable(product, option, soldOut);
+                  const packsLeft = packsInStock(option, levels);
+                  const available = packsLeft > 0;
                   return (
                     <Pressable
                       key={option.id}
@@ -399,7 +436,16 @@ export default function ProductScreen() {
                           {packDistribution(option)}
                         </Small>
                         {!available ? (
-                          <Small style={{ marginTop: 4, fontSize: 10 }}>Beden tükendi</Small>
+                          <Small style={{ marginTop: 4, fontSize: 10 }}>Bu renkte tükendi</Small>
+                        ) : packsLeft <= LOW_STOCK_PACKS ? (
+                          <Small
+                            style={{
+                              marginTop: 4,
+                              fontSize: 10,
+                              color: selected ? Colors.paper : Colors.ink,
+                            }}>
+                            Son {packsLeft} seri
+                          </Small>
                         ) : null}
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
@@ -459,7 +505,7 @@ export default function ProductScreen() {
               <Label>Beden</Label>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                 {product.sizes.map((option) => {
-                  const soldOutSize = soldOut.includes(option);
+                  const soldOutSize = piecesInStock(option, levels) <= 0;
                   const selected = size === option;
                   return (
                     <Pressable
@@ -515,14 +561,14 @@ export default function ProductScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
             <Pressable
               hitSlop={10}
-              onPress={() => setQuantity((value) => Math.max(1, value - 1))}
+              onPress={() => setQuantity(Math.max(1, quantity - 1))}
               style={({ pressed }) => ({ opacity: pressed ? 0.4 : 1 })}>
               <Ionicons name="remove" size={16} color={Colors.ink} />
             </Pressable>
             <BodyStrong style={{ minWidth: 18, textAlign: 'center' }}>{quantity}</BodyStrong>
             <Pressable
               hitSlop={10}
-              onPress={() => setQuantity((value) => Math.min(MAX_LINE_QTY, value + 1))}
+              onPress={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
               style={({ pressed }) => ({ opacity: pressed ? 0.4 : 1 })}>
               <Ionicons name="add" size={16} color={Colors.ink} />
             </Pressable>

@@ -11,15 +11,16 @@ import Animated, {
 
 import { Colors, Spacing } from '@/constants/theme';
 import {
-  packAvailable,
+  colorInStock,
   packLabel,
   packNetPrice,
+  packsInStock,
   primaryPack,
   type Product,
 } from '@/data/catalog';
 import { formatPrice } from '@/lib/format';
 import { useShop } from '@/store/shop';
-import { useSoldOutSizes } from '@/store/stock';
+import { useStockLookup } from '@/store/stock';
 
 import { BodyStrong, Label, Money, Small } from './typography';
 
@@ -38,11 +39,17 @@ export function ProductCard({
 }: ProductCardProps) {
   const favorite = useShop((state) => state.favorites.includes(product.id));
   const toggleFavorite = useShop((state) => state.toggleFavorite);
-  const soldOut = useSoldOutSizes(product.id, product.soldOutSizes);
+  const levelsFor = useStockLookup(product.id);
   const scale = useSharedValue(1);
 
-  const pack = primaryPack(product, soldOut);
-  const packSoldOut = pack ? !packAvailable(product, pack, soldOut) : false;
+  // Each colour is its own series: the card is "in stock" while any colour can ship.
+  const pack = primaryPack(product, (color) => levelsFor(color.code));
+  const packSoldOut = pack
+    ? !product.colors.some((color) => packsInStock(pack, levelsFor(color.code)) > 0)
+    : false;
+  const colorsInStock = product.colors.filter((color) =>
+    colorInStock(product, levelsFor(color.code))
+  ).length;
   /** Cards lead with the per-piece price so nobody has to divide the pack total. */
   const price = product.unitPrice;
   const listPrice = product.listUnitPrice ?? null;
@@ -116,7 +123,9 @@ export function ProductCard({
                 ? packSoldOut
                   ? `${packLabel(pack)} · Seri tükendi`
                   : `${packLabel(pack)} · ${formatPrice(packPrice)} + KDV`
-                : `Tek parça · ${product.colors.length} renk`}
+                : colorsInStock > 0
+                  ? `Tek parça · ${colorsInStock} renk`
+                  : 'Tükendi'}
             </Small>
           </View>
         </Pressable>

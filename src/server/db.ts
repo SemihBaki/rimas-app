@@ -77,12 +77,13 @@ CREATE TABLE IF NOT EXISTS favorites (
   PRIMARY KEY (user_id, product_id)
 );
 
-CREATE TABLE IF NOT EXISTS stock_availability (
+CREATE TABLE IF NOT EXISTS stock_levels (
   product_id TEXT NOT NULL,
+  color_code TEXT NOT NULL,
   size TEXT NOT NULL,
-  available INTEGER NOT NULL DEFAULT 1,
+  qty INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT NOT NULL,
-  PRIMARY KEY (product_id, size)
+  PRIMARY KEY (product_id, color_code, size)
 );
 
 CREATE TABLE IF NOT EXISTS stock_meta (
@@ -113,6 +114,9 @@ function addColumnIfMissing(
 }
 
 function migrate(instance: DatabaseSync) {
+  // Size-only yes/no availability was replaced by per-colour quantities
+  // (stock_levels). It only ever held a copy of Nebim, so nothing is lost.
+  instance.exec('DROP TABLE IF EXISTS stock_availability');
   addColumnIfMissing(instance, 'orders', 'vat_total', 'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(instance, 'orders', 'status', "TEXT NOT NULL DEFAULT 'hazirlaniyor'");
   addColumnIfMissing(instance, 'order_items', 'pack_id', 'TEXT');

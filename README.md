@@ -81,7 +81,9 @@ Katalog toptan satışa göre kurulmuştur:
 - Katalogdaki fiyatlar **KDV hariçtir**. Tüm ürünlerde tek oran uygulanır: **%10**.
 - Kargo, KDV hariç ara toplam **5.000 ₺** ve üzerindeyse ücretsizdir (standart 49,90 ₺, express 89,90 ₺).
 - Minimum sipariş yoktur. Tek parça satışı yalnızca üründe `allowSinglePiece` açıksa mümkündür.
-- Bir serinin bedenlerinden biri tükendiyse seri satışa kapanır; stok ve fatura Nebim'de kalır.
+- Her renk ayrı seridir (örn. 9990 Mavi ve 9990 Siyah ayrı stoklanır). Ürünlerde Nebim model kodu (`code`), renklerde Nebim renk kodu (`colors[].code`) tutulur.
+- Satılabilir seri sayısı, o rengin beden adetlerinden hesaplanır: en az yeten beden belirler (S×1 M×2 L×1, stok S=10 M=8 L=3 → 3 seri). Kalan seri 3 veya altındaysa ürün sayfasında "Son N seri" yazar; tam stok adedi gösterilmez.
+- Stok ve fatura Nebim'de kalır.
 
 Hesaplar tek yerde toplanır: `src/lib/pricing.ts` (istemci ve sunucu aynı formülü kullanır), seri yardımcıları `src/data/catalog.ts` içindedir.
 
@@ -89,16 +91,16 @@ Hesaplar tek yerde toplanır: `src/lib/pricing.ts` (istemci ve sunucu aynı form
 
 Stok üç katmanlıdır; hiçbir ekran doğrudan Nebim'e konuşmaz:
 
-1. **Sağlayıcı** (`src/server/stock.ts`) — `NEBIM_MODE=mock` (varsayılan) katalogdaki demo tükenmiş bedenleri kullanır. `live` gerçek Nebim sağlayıcısını seçer; bağlantı bilgileri gelene kadar bilerek çalışmaz.
-2. **SQLite anlık görüntüsü** — `stock_availability` ve `stock_meta` tabloları. Uygulama ve sipariş API'si yalnızca bu tabloyu okur; Nebim yavaş veya kapalıyken mağaza çalışmaya devam eder.
-3. **İstemci katmanı** (`src/store/stock.ts`) — `/api/stock` yanıtını katalog verisinin üzerine bindirir. Tükenen beden, o bedeni içeren seriyi ve tek parça seçeneğini anında kapatır; sepet toplamı da bu veriye göre yeniden hesaplanır.
+1. **Sağlayıcı** (`src/server/stock.ts`) — Nebim'den model kodu + renk kodu + beden + eldeki adet satırlarını okur (`StockRow`). `NEBIM_MODE=mock` (varsayılan) demo stok kullanır. `live` gerçek Nebim sağlayıcısını seçer; bağlantı bilgileri gelene kadar bilerek çalışmaz. Uygulamada satılmayan model/renk satırları atlanır.
+2. **SQLite anlık görüntüsü** — `stock_levels` (ürün, renk kodu, beden, adet) ve `stock_meta` tabloları. Uygulama ve sipariş API'si yalnızca bu tabloyu okur; Nebim yavaş veya kapalıyken mağaza çalışmaya devam eder.
+3. **İstemci katmanı** (`src/store/stock.ts`) — `/api/stock` yanıtını tutar. Ürün sayfasında renk seçilince seriler o rengin stoğuna göre açılıp kapanır, tükenen renk işaretlenir ve seri adedi stokla sınırlanır; sepet de aynı veriyle kontrol edilir.
 
 Uçlar:
 
-- `GET /api/stock` → `{ source, updatedAt, soldOut: { productId: ["L"] } }`
+- `GET /api/stock` → `{ source, updatedAt, levels: { productId: { renkKodu: { beden: adet } } } }`
 - `POST /api/stock` → sağlayıcıdan yeni anlık görüntü çeker. Üretimde `x-stock-token` başlığı `STOCK_SYNC_TOKEN` değeriyle eşleşmelidir.
 
-Değişkenler `.env.example` içinde listelenmiştir. Nebim'den beklenenler: uç nokta ve kimlik doğrulama yöntemi, IP izin listesi, hız limitleri ve lot dağılımının nasıl döndüğü. Sipariş oluşturulurken stok yeniden doğrulanır; tükenmiş bir seri veya beden siparişe dönüşemez.
+Değişkenler `.env.example` içinde listelenmiştir. Nebim'den beklenenler: uç nokta ve kimlik doğrulama yöntemi, IP izin listesi, hız limitleri ve lot dağılımının nasıl döndüğü. Sipariş oluşturulurken aynı renkteki tüm satırların ihtiyacı toplanıp stokla karşılaştırılır; yetmezse sipariş `409 OUT_OF_STOCK` ile reddedilir. Kabul edilen siparişin parçaları aynı işlemde anlık görüntüden düşülür, böylece bir sonraki Nebim senkronizasyonuna kadar aynı seri iki kez satılamaz.
 
 ## PWA ve arama motorları
 
